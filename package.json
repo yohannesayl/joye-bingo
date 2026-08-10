@@ -1,0 +1,15 @@
+{
+  "name": "karta-games",
+  "version": "1.0.0",
+  "description": "Karta Games - Real-time Ethiopian Bingo Web & Telegram Mini App",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev:backend": "node backend/server.js",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

@@ -1,0 +1,102 @@
+@import "https://cdn.jsdelivr.net/npm/tailwindcss@3.4.3/base.css";
+@import "https://cdn.jsdelivr.net/npm/tailwindcss@3.4.3/components.css";
+@import "https://cdn.jsdelivr.net/npm/tailwindcss@3.4.3/utilities.css";
+
+/* Ahun Bingo Purple Radial Background */
+body {
+  background: radial-gradient(circle at 50% 40%, #582b7d 0%, #3a1959 50%, #200936 100%);
+  background-attachment: fixed;
+  color: #ffffff;
+  font-family: 'Raleway', 'Outfit', sans-serif;
+  min-height: 100vh;
+}
+
+/* Fix Tailwind CSS 15 Column Grid for Bingo 1-75 Numbers Board */
+.grid-cols-15 {
+  display: grid !important;
+  grid-template-columns: repeat(15, minmax(0, 1fr)) !important;
+}
+
+/* Digital LED Clock Font */
+.digital-clock-red {
+  font-family: 'Courier New', monospace;
+  color: #ff2a2a;
+  font-weight: 900;
+  text-shadow: 0 0 10px rgba(255, 42, 42, 0.8);
+}
+
+.digital-clock-green {
+  font-family: 'Courier New', monospace;
+  color: #00ff66;
+  font-weight: 900;
+  text-shadow: 0 0 10px rgba(0, 255, 102, 0.8);
+}
+
+/* Ahun Bingo Table Row Styling */
+.ahun-table-row {
+  background: linear-gradient(180deg, #516285 0%, #384666 100%);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+.ahun-table-row:hover {
+  background: linear-gradient(180deg, #60749c 0%, #44557a 100%);
+}
+
+/* Yellow Action Buttons */
+.ahun-yellow-btn {
+  background-color: #ffc400;
+  color: #1a0826;
+  font-weight: 800;
+  border-radius: 8px;
+  border: 1px solid #ffe066;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+.ahun-yellow-btn:hover {
+  background-color: #ffd633;
+  transform: scale(1.03);
+}
+
+/* Card Selection Grid Numbers */
+.ahun-card-grid-btn {
+  background-color: #e2e8f0;
+  color: #1e293b;
+  font-weight: 800;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+.ahun-card-grid-btn.selected {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.8);
+}
+.ahun-card-grid-btn.taken {
+  background-color: #e11d48 !important;
+  color: #ffffff !important;
+}
+
+/* Ahun Bingo Card Preview Matrix */
+.ahun-bingo-header-b { background-color: #4c1d95; color: white; }
+.ahun-bingo-header-i { background-color: #d97706; color: white; }
+.ahun-bingo-header-n { background-color: #dc2626; color: white; font-style: italic; }
+.ahun-bingo-header-g { background-color: #16a34a; color: white; }
+.ahun-bingo-header-o { background-color: #dc2626; color: white; }
+
+.ahun-free-cell {
+  background-color: #1d4ed8 !important;
+  color: white !important;
+  font-weight: 900;
+}
+
+.ahun-bingo-blue-claim-btn {
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+  font-weight: 900;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.5);
+  transition: all 0.2s ease;
+}
+.ahun-bingo-blue-claim-btn:hover {
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  transform: scale(1.04);
+}

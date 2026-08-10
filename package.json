@@ -1,15 +1,20 @@
 {
-  "name": "karta-games",
+  "name": "joye-bingo",
   "version": "1.0.0",
-  "description": "Karta Games - Real-time Ethiopian Bingo Web & Telegram Mini App",
+  "description": "Joye Bingo - Real-time Ethiopian Bingo Web & Telegram Mini App",
+  "type": "module",
   "main": "backend/server.js",
   "scripts": {
     "start": "node backend/server.js",
+    "build": "cd backend && npm install",
+    "postinstall": "cd backend && npm install",
     "dev:backend": "node backend/server.js",
-    "dev:frontend": "cd frontend && npm run dev",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+    "dev:frontend": "cd frontend && npm run dev"
   },
   "dependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
   }
 }

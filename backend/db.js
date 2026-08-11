@@ -47,9 +47,25 @@ const gameHistorySchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now }
 }, { collection: 'game_history' });
 
+const roomStateSchema = new mongoose.Schema({
+  roomId: { type: String, required: true, unique: true },
+  name: { type: String, default: '' },
+  stake: { type: Number, default: 10 },
+  status: { type: String, default: 'COUNTDOWN' },
+  countdownSeconds: { type: Number, default: 45 },
+  pot: { type: Number, default: 0 },
+  players: { type: Array, default: [] },
+  cardPurchases: { type: Array, default: [] },
+  calledBalls: { type: [Number], default: [] },
+  currentBall: { type: Object, default: null },
+  winner: { type: Object, default: null },
+  updatedAt: { type: Date, default: Date.now }
+}, { collection: 'room_states' });
+
 export const User = mongoose.model('User', userSchema);
 export const Transaction = mongoose.model('Transaction', transactionSchema);
 export const GameHistory = mongoose.model('GameHistory', gameHistorySchema);
+export const RoomState = mongoose.model('RoomState', roomStateSchema);
 
 class DatabaseService {
   constructor() {
@@ -379,6 +395,28 @@ class DatabaseService {
       } catch (e) {}
     }
     return [];
+  }
+
+  async getRoomState(roomId) {
+    if (isMongoConnected) {
+      try {
+        return await RoomState.findOne({ roomId }).lean();
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  async updateRoomState(roomId, updateData) {
+    if (isMongoConnected) {
+      try {
+        return await RoomState.findOneAndUpdate(
+          { roomId },
+          { $set: { ...updateData, updatedAt: new Date() } },
+          { upsert: true, new: true }
+        ).lean();
+      } catch (e) {}
+    }
+    return null;
   }
 }
 

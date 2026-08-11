@@ -127,12 +127,23 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
       const winnerData = data.winner;
       setWinnerModal(winnerData);
 
-      if (winnerData.userId === user?.id) {
+      const isMe = winnerData.userId === user?.id || (
+        winnerData.userName && user && winnerData.userName.toLowerCase() === (user.displayName || user.username || '').toLowerCase()
+      );
+
+      if (isMe) {
         sound.playWinFanfare();
         confetti({ particleCount: 240, spread: 140, origin: { y: 0.4 } });
       } else {
         sound.playClick();
       }
+
+      // Exit all players out of the match back to Lobby after 10 seconds!
+      setTimeout(() => {
+        if (room?.id) sessionStorage.removeItem(`joye_card_${room.id}`);
+        setWinnerModal(null);
+        onLeaveRoom();
+      }, 10000);
     };
 
     const handleRoomState = (data) => {
@@ -715,11 +726,13 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
               <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest shadow ${
                 isUserWinner ? 'bg-yellow-400 text-slate-950' : 'bg-rose-600 text-white'
               }`}>
-                {isUserWinner ? '🎉 CONGRATULATIONS! YOU WON BINGO!' : 'MATCH FINISHED!'}
+                {isUserWinner ? '🎉 CONGRATULATIONS! YOU WON BINGO!' : '❌ YOU LOST! MATCH FINISHED'}
               </span>
-              <h3 className="text-3xl font-black text-white pt-2">{winnerModal.userName}</h3>
+              <h3 className="text-3xl font-black text-white pt-2">
+                {isUserWinner ? 'You Won!' : `Winner: ${winnerModal.userName}`}
+              </h3>
               <p className="text-xs text-yellow-200">
-                {isUserWinner ? 'You won' : 'Winner won'} with <strong>Card No. {winnerModal.cardId}</strong> ({winnerModal.pattern})
+                {isUserWinner ? 'You won' : `Player ${winnerModal.userName} won`} with <strong>Card No. {winnerModal.cardId}</strong> ({winnerModal.pattern})
               </p>
             </div>
 

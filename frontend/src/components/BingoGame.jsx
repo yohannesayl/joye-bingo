@@ -174,6 +174,62 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     return () => clearInterval(timer);
   }, [isStep4Active, isGameOver]);
 
+  // GUARANTEED AUTOMATIC BALL DRAWING TICKER (Draws random BINGO numbers out loud every 3s!)
+  useEffect(() => {
+    if (!isStep4Active || isGameOver) return;
+
+    // Draw immediate first ball if liveCurrentBall is null!
+    if (!liveCurrentBall) {
+      const remaining = Array.from({ length: 75 }, (_, i) => i + 1).filter(n => !liveCalledBalls.includes(n));
+      if (remaining.length > 0) {
+        const nextNum = remaining[Math.floor(Math.random() * remaining.length)];
+        let letter = 'B';
+        if (nextNum >= 16 && nextNum <= 30) letter = 'I';
+        else if (nextNum >= 31 && nextNum <= 45) letter = 'N';
+        else if (nextNum >= 46 && nextNum <= 60) letter = 'G';
+        else if (nextNum >= 61 && nextNum <= 75) letter = 'O';
+
+        const newBall = { letter, number: nextNum };
+        setLiveCurrentBall(newBall);
+        setLiveCalledBalls(prev => [...prev, nextNum]);
+        sound.initContext();
+        sound.playBallPop();
+        if (voiceOn) {
+          sound.speakBall(letter, nextNum);
+        }
+      }
+    }
+
+    const ballInterval = setInterval(() => {
+      setLiveCalledBalls(prevCalled => {
+        if (prevCalled.length >= 75) {
+          clearInterval(ballInterval);
+          return prevCalled;
+        }
+        const remaining = Array.from({ length: 75 }, (_, i) => i + 1).filter(n => !prevCalled.includes(n));
+        if (remaining.length === 0) return prevCalled;
+
+        const nextNum = remaining[Math.floor(Math.random() * remaining.length)];
+        let letter = 'B';
+        if (nextNum >= 16 && nextNum <= 30) letter = 'I';
+        else if (nextNum >= 31 && nextNum <= 45) letter = 'N';
+        else if (nextNum >= 46 && nextNum <= 60) letter = 'G';
+        else if (nextNum >= 61 && nextNum <= 75) letter = 'O';
+
+        const newBall = { letter, number: nextNum };
+        setLiveCurrentBall(newBall);
+        sound.initContext();
+        sound.playBallPop();
+        if (voiceOn) {
+          sound.speakBall(letter, nextNum);
+        }
+        return [...prevCalled, nextNum];
+      });
+    }, 3000);
+
+    return () => clearInterval(ballInterval);
+  }, [isStep4Active, isGameOver, voiceOn]);
+
   // Default fallback card (Card No. 72)
   const defaultCard72 = {
     id: 72,

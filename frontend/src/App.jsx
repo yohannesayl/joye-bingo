@@ -29,6 +29,22 @@ export default function App() {
   const [customServerUrl, setCustomServerUrl] = useState(getBackendUrl());
   const [lang, setLang] = useState('en');
 
+  // GLOBAL MASTER WALL-CLOCK SECONDS (100% Identical Seconds Across ALL 3 Pages!)
+  const [globalMasterSeconds, setGlobalMasterSeconds] = useState(45);
+
+  useEffect(() => {
+    const updateMasterClock = () => {
+      const nowMs = Date.now();
+      const roundMs = 45 * 1000;
+      const remSeconds = Math.max(0, Math.ceil((roundMs - (nowMs % roundMs)) / 1000));
+      setGlobalMasterSeconds(remSeconds);
+    };
+
+    updateMasterClock();
+    const timer = setInterval(updateMasterClock, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Initialize & Restore User Session (Strict sessionStorage per-tab isolation!)
   useEffect(() => {
     const tgInfo = getTelegramData();
@@ -250,6 +266,7 @@ export default function App() {
           <Lobby
             rooms={rooms}
             onJoinRoom={handleJoinRoom}
+            globalMasterSeconds={globalMasterSeconds}
           />
         )}
 
@@ -264,6 +281,7 @@ export default function App() {
               }
             }}
             onLeaveRoom={handleLeaveRoom}
+            globalMasterSeconds={globalMasterSeconds}
           />
         )}
 

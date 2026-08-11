@@ -3,7 +3,7 @@ import { Shuffle } from 'lucide-react';
 import { sound } from '../services/soundService';
 import { generateBingoCard } from '../services/gameEngine.js';
 
-export default function CardSelector({ room, globalSeconds, user, onBuyCard, onClose }) {
+export default function CardSelector({ room, globalMasterSeconds, user, onBuyCard, onClose }) {
   const [selectedCardId, setSelectedCardId] = useState(null);
   const [previewCard, setPreviewCard] = useState(null);
   const [confirmedCardId, setConfirmedCardId] = useState(null);
@@ -25,7 +25,7 @@ export default function CardSelector({ room, globalSeconds, user, onBuyCard, onC
       .map(cp => cp.cardId || cp.card?.id)
   );
 
-  const secondsLeft = globalSeconds !== undefined ? globalSeconds : (room?.countdownSeconds || 31);
+  const secondsLeft = globalMasterSeconds !== undefined ? globalMasterSeconds : (room?.countdownSeconds || 45);
 
   // AUTOMATIC TRANSITION AT 0:00
   useEffect(() => {

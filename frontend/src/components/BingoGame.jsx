@@ -65,7 +65,7 @@ const checkCardBingoPattern = (matrix, markedSet) => {
   return false;
 };
 
-export default function BingoGame({ room, user, socket, onOpenCardSelector, onLeaveRoom }) {
+export default function BingoGame({ room, user, socket, onOpenCardSelector, onLeaveRoom, globalMasterSeconds }) {
   const [myCards, setMyCards] = useState([]);
   const [autoCardSelector, setAutoCardSelector] = useState(false);
   const [daubedMap, setDaubedMap] = useState({});
@@ -78,6 +78,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
 
   // COUNTDOWN TIMER & PLAYING STATUS STATE
   const [step3Countdown, setStep3Countdown] = useState(room?.countdownSeconds !== undefined ? room.countdownSeconds : 30);
+  const displayCountdownSeconds = globalMasterSeconds !== undefined ? globalMasterSeconds : step3Countdown;
   const [isStep4Active, setIsStep4Active] = useState(room?.status === 'PLAYING' || (room?.calledBalls && room.calledBalls.length > 0));
   const [liveCalledBalls, setLiveCalledBalls] = useState(room?.calledBalls || []);
   const [liveCurrentBall, setLiveCurrentBall] = useState(room?.currentBall || null);
@@ -402,7 +403,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
             ? '👥 Waiting for Players (Need 2+)'
             : isStep4Active
             ? '⚡ PLAYING'
-            : `⏱ Selection Countdown: 0:${step3Countdown < 10 ? '0' : ''}${step3Countdown}`}
+            : `⏱ Selection Countdown: 0:${displayCountdownSeconds < 10 ? '0' : ''}${displayCountdownSeconds}`}
         </span>
 
         {/* Speed Controls */}
@@ -454,7 +455,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
           </h3>
 
           <div className="digital-clock-green text-4xl font-mono py-1">
-            0:{step3Countdown < 10 ? '0' : ''}{step3Countdown}
+            0:{displayCountdownSeconds < 10 ? '0' : ''}{displayCountdownSeconds}
           </div>
 
           <p className="text-[11px] text-slate-300 max-w-md mx-auto">
@@ -498,7 +499,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
             ) : (
               <div className="w-28 h-28 rounded-full bg-[#120524] border-4 border-dashed border-purple-800 flex flex-col items-center justify-center text-yellow-400 font-extrabold text-xs text-center p-2">
                 <Clock className="w-6 h-6 mb-1 animate-spin" />
-                <span>Starts in 0:{step3Countdown < 10 ? '0' : ''}{step3Countdown}</span>
+                <span>Starts in 0:{displayCountdownSeconds < 10 ? '0' : ''}{displayCountdownSeconds}</span>
               </div>
             )}
 

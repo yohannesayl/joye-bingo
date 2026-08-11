@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight, Users, Flame, Shield, Sparkles } from 'lucide-react';
 import { sound } from '../services/soundService';
 
-export default function Lobby({ rooms, onJoinRoom }) {
+export default function Lobby({ rooms, onJoinRoom, globalMasterSeconds }) {
   const defaultStakes = [
     { id: 'room_10', stake: 10, bonus: 'T 0 (+100 ETB)' },
     { id: 'room_20', stake: 20, bonus: 'T 0 (+100 ETB)' },
@@ -14,15 +14,6 @@ export default function Lobby({ rooms, onJoinRoom }) {
     { id: 'room_200', stake: 200, bonus: 'T 0 (+100 ETB)' },
     { id: 'room_300', stake: 300, bonus: 'T 0 (+100 ETB)' },
   ];
-
-  const [localSeconds, setLocalSeconds] = useState(45);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setLocalSeconds(prev => (prev <= 1 ? 45 : prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Map room data from socket
   const roomMap = {};
@@ -62,7 +53,7 @@ export default function Lobby({ rooms, onJoinRoom }) {
           {defaultStakes.map(({ id, stake, bonus }) => {
             const liveRoom = roomMap[id] || {};
             const status = liveRoom.status || 'COUNTDOWN';
-            const seconds = (liveRoom.countdownSeconds !== undefined && liveRoom.countdownSeconds > 0) ? liveRoom.countdownSeconds : localSeconds;
+            const seconds = (liveRoom.countdownSeconds !== undefined && liveRoom.countdownSeconds > 0) ? liveRoom.countdownSeconds : (globalMasterSeconds || 45);
             const pot = liveRoom.pot || (stake * 2 * 0.85);
             const playerCount = liveRoom.playerCount || 0;
 

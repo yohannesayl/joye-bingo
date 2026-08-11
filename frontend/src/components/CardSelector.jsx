@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shuffle } from 'lucide-react';
 import { sound } from '../services/soundService';
-import { generateBingoCard } from '../../../backend/gameEngine.js';
+import { generateBingoCard } from '../services/gameEngine.js';
 
 export default function CardSelector({ room, globalSeconds, user, onBuyCard, onClose }) {
   const [selectedCardId, setSelectedCardId] = useState(null);

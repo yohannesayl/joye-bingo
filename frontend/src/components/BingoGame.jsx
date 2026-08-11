@@ -70,7 +70,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   const [daubedMap, setDaubedMap] = useState({});
   const [winnerModal, setWinnerModal] = useState(null);
   const [voiceOn, setVoiceOn] = useState(true);
-  const [voiceLang, setVoiceLang] = useState('am');
+  const [voiceLang, setVoiceLang] = useState('en');
   const [callSpeedMs, setCallSpeedMs] = useState(3000);
   const [audioStarted, setAudioStarted] = useState(false);
   const [isGameOver, setIsGameOver] = useState(room?.status === 'FINISHED');

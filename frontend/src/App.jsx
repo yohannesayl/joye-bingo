@@ -28,7 +28,7 @@ export default function App() {
   const [showServerConfigModal, setShowServerConfigModal] = useState(false);
   const [customServerUrl, setCustomServerUrl] = useState(getBackendUrl());
   const [playingNoticeModal, setPlayingNoticeModal] = useState(false);
-  const [lang, setLang] = useState('am');
+  const [lang, setLang] = useState('en');
 
   // Initialize & Restore User From Database
   useEffect(() => {

@@ -38,7 +38,7 @@ export class RoomManager {
         name: cfg.name,
         stake: cfg.stake,
         status: 'WAITING_FOR_PLAYERS', // 'WAITING_FOR_PLAYERS', 'COUNTDOWN', 'PLAYING', 'FINISHED'
-        countdownSeconds: 10,
+        countdownSeconds: 45,
         countdownTimer: null,
         players: new Map(), // playerKey -> { socketId, userId, userName }
         cardPurchases: new Map(), // cardId -> { userId, userName, card }
@@ -69,7 +69,7 @@ export class RoomManager {
     this.io.emit('lobby_list', this.getRoomList());
   }
 
-  // COUNT UNIQUE PLAYERS STRICTLY BASED ON DISTINCT USERNAMES / USER IDS!
+  // COUNT UNIQUE JOINED PLAYERS STRICTLY BASED ON DISTINCT USERNAMES / USER IDS!
   getPlayerCount(room) {
     if (!room) return 0;
     const uniquePlayers = new Set();
@@ -153,9 +153,13 @@ export class RoomManager {
       userName: effectiveUserName
     });
 
-    // Start match immediately so system ball calling begins right away!
-    if (room.status === 'WAITING_FOR_PLAYERS') {
-      this.startMatch(roomId);
+    const activeCount = this.getPlayerCount(room);
+    room.pot = this.calculateRoomPot(room);
+
+    if (activeCount >= 2) {
+      if (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer) {
+        this.startCountdown(roomId);
+      }
     }
 
     this.broadcastRoomUpdate(roomId);
@@ -216,7 +220,7 @@ export class RoomManager {
 
     if (room.status !== 'PLAYING' && activeCount < 2) {
       room.status = 'WAITING_FOR_PLAYERS';
-      room.countdownSeconds = 10;
+      room.countdownSeconds = 45;
       if (room.countdownTimer) {
         clearInterval(room.countdownTimer);
         room.countdownTimer = null;
@@ -264,8 +268,8 @@ export class RoomManager {
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    if (room.status === 'WAITING_FOR_PLAYERS') {
-      this.startMatch(roomId);
+    if (activeCount >= 2 && (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer)) {
+      this.startCountdown(roomId);
     }
 
     this.broadcastRoomUpdate(roomId);
@@ -286,7 +290,7 @@ export class RoomManager {
     }
 
     room.status = 'COUNTDOWN';
-    room.countdownSeconds = 10;
+    room.countdownSeconds = 45;
     this.broadcastRoomUpdate(roomId);
 
     room.countdownTimer = setInterval(() => {
@@ -296,7 +300,7 @@ export class RoomManager {
         clearInterval(room.countdownTimer);
         room.countdownTimer = null;
         room.status = 'WAITING_FOR_PLAYERS';
-        room.countdownSeconds = 10;
+        room.countdownSeconds = 45;
         this.broadcastRoomUpdate(roomId);
         return;
       }
@@ -434,7 +438,7 @@ export class RoomManager {
     room.winner = null;
 
     room.status = 'WAITING_FOR_PLAYERS';
-    room.countdownSeconds = 10;
+    room.countdownSeconds = 45;
     this.broadcastRoomUpdate(roomId);
   }
 

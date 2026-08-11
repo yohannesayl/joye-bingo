@@ -614,7 +614,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
                     <button
                       key={`${r}-${c}`}
                       disabled={cell.isFree || !isCalledBySystem || isGameOver}
-                      onClick={() => handleToggleDaub(activeCard.id, cell.number)}
+                      onClick={() => handleToggleDaub(safeActiveCard.id, cell.number)}
                       title={isCalledBySystem ? 'Click to mark called number' : 'Wait for system to call this number'}
                       className={`h-8 rounded flex items-center justify-center font-extrabold text-xs border shadow-sm transition-all ${
                         cell.isFree
@@ -636,7 +636,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
             {/* BINGO BUTTON */}
             <button
               disabled={!isBingoRuleMatched || isGameOver || !isStep4Active}
-              onClick={() => handleClaimBingo(activeCard.id)}
+              onClick={() => handleClaimBingo(safeActiveCard.id)}
               title={isBingoRuleMatched ? 'Click to claim Bingo win!' : 'Complete 5 in a row to enable Bingo button'}
               className={`w-full py-2.5 rounded-lg text-xs font-black uppercase tracking-wider shadow-lg transition-all ${
                 isGameOver

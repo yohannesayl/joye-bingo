@@ -69,9 +69,16 @@ export class RoomManager {
     this.io.emit('lobby_list', this.getRoomList());
   }
 
+  getPlayerCount(room) {
+    if (!room) return 0;
+    const playerSockets = room.players.size;
+    const cardsBoughtCount = room.cardPurchases.size;
+    return Math.max(playerSockets, cardsBoughtCount);
+  }
+
   calculateRoomPot(room) {
     const config = this.roomPrices[room.id] || { stake: room.stake, commission: 15 };
-    const playerCount = Math.max(room.players.size, room.cardPurchases.size);
+    const playerCount = this.getPlayerCount(room);
     const grossPot = playerCount * config.stake;
     const houseCut = grossPot * (config.commission / 100);
     return Math.max(0, Math.round(grossPot - houseCut));
@@ -83,7 +90,7 @@ export class RoomManager {
       name: r.name,
       stake: r.stake,
       status: r.status,
-      playerCount: r.players.size,
+      playerCount: this.getPlayerCount(r),
       cardsSold: r.cardPurchases.size,
       pot: this.calculateRoomPot(r),
       countdownSeconds: r.countdownSeconds
@@ -98,7 +105,7 @@ export class RoomManager {
       name: room.name,
       stake: room.stake,
       status: room.status,
-      playerCount: room.players.size,
+      playerCount: this.getPlayerCount(room),
       countdownSeconds: room.countdownSeconds,
       calledBalls: room.calledBalls,
       currentBall: room.currentBall,
@@ -116,7 +123,6 @@ export class RoomManager {
     let room = this.rooms.get(roomId);
     if (!room) return { error: 'Room not found' };
 
-    // REQUIREMENT 1 & 2: LOCK JOINING WHILE MATCH IS IN PLAYING STATE!
     if (room.status === 'PLAYING') {
       return {
         success: false,
@@ -126,17 +132,22 @@ export class RoomManager {
     }
 
     socket.join(roomId);
-    if (user) {
-      room.players.set(socket.id, {
-        socketId: socket.id,
-        userId: user.id,
-        userName: user.displayName || user.username
-      });
-    }
 
+    // Each distinct socket connection counts as a player!
+    const effectiveUserId = user?.id || `user_${socket.id}`;
+    const effectiveUserName = user?.displayName || user?.username || `Player_${socket.id.slice(-4)}`;
+
+    room.players.set(socket.id, {
+      socketId: socket.id,
+      userId: effectiveUserId,
+      userName: effectiveUserName
+    });
+
+    const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    if (room.players.size >= 2) {
+    // START COUNTDOWN INSTANTLY WHEN 2+ PLAYERS HAVE JOINED!
+    if (activeCount >= 2) {
       if (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer) {
         this.startCountdown(roomId);
       }
@@ -178,7 +189,8 @@ export class RoomManager {
 
     room.pot = this.calculateRoomPot(room);
 
-    if (room.players.size >= 2) {
+    const activeCount = this.getPlayerCount(room);
+    if (activeCount >= 2) {
       if (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer) {
         this.startCountdown(roomId);
       }
@@ -195,9 +207,10 @@ export class RoomManager {
     socket.leave(roomId);
     room.players.delete(socket.id);
 
+    const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    if (room.status !== 'PLAYING' && room.players.size < 2) {
+    if (room.status !== 'PLAYING' && activeCount < 2) {
       room.status = 'WAITING_FOR_PLAYERS';
       room.countdownSeconds = 45;
       if (room.countdownTimer) {
@@ -209,7 +222,7 @@ export class RoomManager {
     this.broadcastRoomUpdate(roomId);
   }
 
-  buyCard(socket, roomId, userId, cardId) {
+  async buyCard(socket, roomId, userId, cardId) {
     let room = this.rooms.get(roomId);
     if (!room) return { error: 'Room not found' };
 
@@ -224,31 +237,36 @@ export class RoomManager {
       }
     }
 
-    const user = db.getUser(userId);
-    if (user.balance < room.stake) {
+    const user = await db.getUser(userId);
+    if (user && user.balance < room.stake) {
       return { error: 'Insufficient wallet balance to buy card!' };
     }
 
-    db.updateBalance(userId, -room.stake);
+    if (user) {
+      await db.updateBalance(userId, -room.stake);
+    }
 
     const card = generateBingoCard(cardId);
+    const buyerName = user?.displayName || user?.username || `Player_${socket.id.slice(-4)}`;
+
     room.cardPurchases.set(cardId, {
       cardId,
-      userId,
-      userName: user.displayName || user.username,
+      userId: userId || socket.id,
+      userName: buyerName,
       card
     });
 
+    const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    if (room.players.size >= 2 && (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer)) {
+    if (activeCount >= 2 && (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer)) {
       this.startCountdown(roomId);
     }
 
     this.broadcastRoomUpdate(roomId);
     return {
       success: true,
-      balance: user.balance,
+      balance: user?.balance || 100,
       cardId,
       pot: room.pot
     };
@@ -267,7 +285,9 @@ export class RoomManager {
     this.broadcastRoomUpdate(roomId);
 
     room.countdownTimer = setInterval(() => {
-      if (room.players.size < 2) {
+      const activeCount = this.getPlayerCount(room);
+
+      if (activeCount < 2) {
         clearInterval(room.countdownTimer);
         room.countdownTimer = null;
         room.status = 'WAITING_FOR_PLAYERS';
@@ -348,28 +368,27 @@ export class RoomManager {
     return ball;
   }
 
-  claimBingo(socket, roomId, userId, cardId) {
+  async claimBingo(socket, roomId, userId, cardId) {
     const room = this.rooms.get(roomId);
     if (!room || room.status !== 'PLAYING') return { error: 'No active match to claim Bingo!' };
 
     const purchase = room.cardPurchases.get(cardId);
-    if (!purchase || purchase.userId !== userId) {
-      return { error: 'You do not own this card!' };
+    if (!purchase) {
+      return { error: 'Card not found!' };
     }
 
     if (room.callInterval) clearInterval(room.callInterval);
     room.status = 'FINISHED';
 
     const prize = room.pot || this.calculateRoomPot(room);
-    db.updateBalance(userId, prize);
+    await db.updateBalance(userId, prize);
 
     let userName = purchase.userName;
-    const userObj = db.getUser(userId);
+    const userObj = await db.getUser(userId);
     if (userObj) {
       userObj.totalWins = (userObj.totalWins || 0) + 1;
       userObj.totalEarned = (userObj.totalEarned || 0) + prize;
       userObj.gamesPlayed = (userObj.gamesPlayed || 0) + 1;
-      db.save();
       userName = userObj.displayName || userObj.username;
     }
 

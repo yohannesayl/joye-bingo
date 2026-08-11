@@ -77,7 +77,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   const [isGameOver, setIsGameOver] = useState(room?.status === 'FINISHED');
 
   // COUNTDOWN TIMER & PLAYING STATUS STATE
-  const [step3Countdown, setStep3Countdown] = useState(room?.countdownSeconds !== undefined ? room.countdownSeconds : 15);
+  const [step3Countdown, setStep3Countdown] = useState(room?.countdownSeconds !== undefined ? room.countdownSeconds : 60);
   const [isStep4Active, setIsStep4Active] = useState(room?.status === 'PLAYING' || (room?.calledBalls && room.calledBalls.length > 0));
   const [liveCalledBalls, setLiveCalledBalls] = useState(room?.calledBalls || []);
   const [liveCurrentBall, setLiveCurrentBall] = useState(room?.currentBall || null);

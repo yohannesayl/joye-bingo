@@ -38,7 +38,7 @@ export class RoomManager {
         name: cfg.name,
         stake: cfg.stake,
         status: 'WAITING_FOR_PLAYERS', // 'WAITING_FOR_PLAYERS', 'COUNTDOWN', 'PLAYING', 'FINISHED'
-        countdownSeconds: 45,
+        countdownSeconds: 60,
         countdownTimer: null,
         players: new Map(), // playerKey -> { socketId, userId, userName }
         cardPurchases: new Map(), // cardId -> { userId, userName, card }
@@ -277,13 +277,13 @@ export class RoomManager {
       room.matchStartTime = Date.now();
     }
 
-    room.countdownSeconds = Math.max(0, 30 - Math.floor((Date.now() - room.matchStartTime) / 1000));
+    room.countdownSeconds = Math.max(0, 60 - Math.floor((Date.now() - room.matchStartTime) / 1000));
     this.broadcastRoomUpdate(roomId);
 
     room.countdownTimer = setInterval(() => {
       if (!room.matchStartTime) room.matchStartTime = Date.now();
       const elapsed = Math.floor((Date.now() - room.matchStartTime) / 1000);
-      room.countdownSeconds = Math.max(0, 30 - elapsed);
+      room.countdownSeconds = Math.max(0, 60 - elapsed);
 
       if (room.countdownSeconds <= 0) {
         clearInterval(room.countdownTimer);
@@ -423,7 +423,7 @@ export class RoomManager {
 
     room.matchStartTime = null;
     room.status = 'WAITING_FOR_PLAYERS';
-    room.countdownSeconds = 30;
+    room.countdownSeconds = 60;
     this.broadcastRoomUpdate(roomId);
   }
 

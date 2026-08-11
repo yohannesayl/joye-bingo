@@ -96,13 +96,10 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     if (room.status === 'FINISHED') {
       setIsGameOver(true);
     }
-    if (room.countdownSeconds !== undefined && !isStep4Active) {
-      setStep3Countdown(room.countdownSeconds);
-    }
     if (room.calledBalls) setLiveCalledBalls(room.calledBalls);
     if (room.currentBall) setLiveCurrentBall(room.currentBall);
     if (room.winner) setWinnerModal(room.winner);
-  }, [room?.status, room?.countdownSeconds, room?.calledBalls, room?.currentBall, room?.winner, isStep4Active]);
+  }, [room?.status, room?.calledBalls, room?.currentBall, room?.winner]);
 
   // SOCKET REAL-TIME SYNC: ALL BROWSERS RECEIVE SAME DRAWN BALLS & WINNER BROADCAST!
   useEffect(() => {
@@ -147,7 +144,6 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
       }
       if (data.currentBall) setLiveCurrentBall(data.currentBall);
       if (data.calledBalls) setLiveCalledBalls(data.calledBalls);
-      if (data.countdownSeconds !== undefined && !isStep4Active) setStep3Countdown(data.countdownSeconds);
     };
 
     socket.on('ball_called', handleBallCalled);
@@ -159,7 +155,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
       socket.off('bingo_winner', handleBingoWinner);
       socket.off('room_state', handleRoomState);
     };
-  }, [socket, voiceOn, isGameOver, user?.id, isStep4Active]);
+  }, [socket, voiceOn, isGameOver, user?.id]);
 
   // 1-SECOND HTTP REST POLLING TICKER (100% UNBEATABLE BACKUP SYNC FOR ALL DEVICES!)
   useEffect(() => {
@@ -180,9 +176,6 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
             }
             if (r.currentBall) setLiveCurrentBall(r.currentBall);
             if (r.calledBalls) setLiveCalledBalls(r.calledBalls);
-            if (r.countdownSeconds !== undefined && !isStep4Active) {
-              setStep3Countdown(r.countdownSeconds);
-            }
             if (r.winner) setWinnerModal(r.winner);
           }
         }
@@ -190,7 +183,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     }, 1000);
 
     return () => clearInterval(pollInterval);
-  }, [room?.id, isStep4Active]);
+  }, [room?.id]);
 
   // SMOOTH 1-SECOND VISUAL COUNTDOWN TICKER (60 -> 59 -> 58... -> 0:00!)
   useEffect(() => {

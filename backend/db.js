@@ -53,6 +53,8 @@ const roomStateSchema = new mongoose.Schema({
   stake: { type: Number, default: 10 },
   status: { type: String, default: 'WAITING_FOR_PLAYERS' },
   matchStartTime: { type: Number, default: 0 },
+  gameStartTime: { type: Number, default: 0 },
+  ballSequence: { type: [Number], default: [] },
   calledBalls: { type: [Number], default: [] },
   currentBall: { type: Object, default: null },
   purchasedCards: { type: Array, default: [] },

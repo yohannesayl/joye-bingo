@@ -196,7 +196,7 @@ export default function App() {
     setActiveTab('lobby');
   };
 
-  // ALWAYS ALLOW JOINING DIRECTLY TO THE GAME SCREEN!
+  // ALWAYS ALLOW JOINING DIRECTLY TO THE GAME SCREEN FOR ACTIVE MATCH RE-ENTRY!
   const handleJoinRoom = (roomId) => {
     sound.playClick();
     setCurrentRoomId(roomId);
@@ -204,8 +204,15 @@ export default function App() {
 
     socketService.joinRoom(roomId, user);
 
-    if (targetRoom && targetRoom.status === 'PLAYING') {
-      // IF ROOM IS IN PLAYING STATE, ROUTE DIRECTLY TO LIVE GAME MATCH SCREEN!
+    const savedCardId = sessionStorage.getItem(`joye_card_${roomId}`);
+    const isUserInMatch = targetRoom && (
+      (targetRoom.purchasedCards || []).some(cp =>
+        cp.userId === user?.id || (cp.userName && user?.username && cp.userName.toLowerCase() === user.username.toLowerCase())
+      ) || !!savedCardId
+    );
+
+    if ((targetRoom && targetRoom.status === 'PLAYING') || isUserInMatch) {
+      // IF MATCH IS PLAYING OR USER ALREADY HAS AN ACTIVE CARD, ROUTE DIRECTLY TO LIVE MATCH SCREEN WITHOUT SELECTING A NEW CARD!
       setShowCardSelector(false);
       setActiveTab('game');
     } else {

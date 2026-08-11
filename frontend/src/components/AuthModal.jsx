@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, LogIn, UserPlus, Phone, Lock, User, Sparkles, AlertCircle } from 'lucide-react';
 import { sound } from '../services/soundService';
+import { getBackendUrl } from '../services/config';
 
 export default function AuthModal({ onLoginSuccess, onClose }) {
   const [mode, setMode] = useState('login'); // 'login' or 'register'
@@ -31,7 +32,8 @@ export default function AuthModal({ onLoginSuccess, onClose }) {
     sound.playClick();
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ loginInput, password: loginPassword })
@@ -49,7 +51,7 @@ export default function AuthModal({ onLoginSuccess, onClose }) {
       onClose();
     } catch (err) {
       setIsLoading(false);
-      setErrorMsg('Server error! Please check your network connection.');
+      setErrorMsg('Server error! Could not connect to backend server. Make sure your Render backend URL is configured.');
     }
   };
 
@@ -65,7 +67,8 @@ export default function AuthModal({ onLoginSuccess, onClose }) {
     sound.playClick();
 
     try {
-      const res = await fetch('/api/auth/register', {
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -88,7 +91,7 @@ export default function AuthModal({ onLoginSuccess, onClose }) {
       onClose();
     } catch (err) {
       setIsLoading(false);
-      setErrorMsg('Server error! Please check your network connection.');
+      setErrorMsg('Server error! Could not connect to backend server. Make sure your Render backend URL is configured.');
     }
   };
 

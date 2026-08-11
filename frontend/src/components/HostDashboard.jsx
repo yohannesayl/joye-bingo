@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, Play, Pause, FastForward, RotateCcw, Users, DollarSign, Settings, Plus, Minus, Search, Check, Lock, Unlock, RefreshCw } from 'lucide-react';
+import { ShieldAlert, Play, Pause, FastForward, RotateCcw, Users, DollarSign, Settings, Plus, Minus, Search, Check, Lock, Unlock, RefreshCw, Globe } from 'lucide-react';
 import { sound } from '../services/soundService';
+import { getBackendUrl } from '../services/config';
 
-export default function HostDashboard({ rooms, socket }) {
+export default function HostDashboard({ rooms, socket, onOpenServerConfig }) {
   const [activeTab, setActiveTab] = useState('price_management'); // 'price_management', 'user_management', 'caller_controls'
   const [selectedRoomId, setSelectedRoomId] = useState(rooms[0]?.id || 'room_10');
 
@@ -29,7 +30,8 @@ export default function HostDashboard({ rooms, socket }) {
   const fetchUsersFromDB = async () => {
     setIsLoadingUsers(true);
     try {
-      const res = await fetch('/api/admin/users');
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/admin/users`);
       const data = await res.json();
       if (data.users) {
         setUserList(data.users);
@@ -70,7 +72,8 @@ export default function HostDashboard({ rooms, socket }) {
   const handleAdjustBalance = async (userId, delta) => {
     sound.playClick();
     try {
-      const res = await fetch('/api/admin/user-balance', {
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/admin/user-balance`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, delta })
@@ -89,7 +92,8 @@ export default function HostDashboard({ rooms, socket }) {
   const handleToggleUserStatus = async (userId) => {
     sound.playClick();
     try {
-      const res = await fetch('/api/admin/toggle-block', {
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/admin/toggle-block`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId })
@@ -127,8 +131,8 @@ export default function HostDashboard({ rooms, socket }) {
           </div>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-2 bg-[#120524] p-1.5 rounded-2xl border border-purple-800">
+        {/* Tab Switcher & Render Backend Config Button */}
+        <div className="flex flex-wrap items-center gap-2 bg-[#120524] p-1.5 rounded-2xl border border-purple-800">
           <button
             onClick={() => { sound.playClick(); setActiveTab('price_management'); }}
             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
@@ -163,6 +167,15 @@ export default function HostDashboard({ rooms, socket }) {
           >
             <Settings className="w-4 h-4" />
             Caller Controls
+          </button>
+
+          <button
+            onClick={() => { sound.playClick(); onOpenServerConfig && onOpenServerConfig(); }}
+            className="px-3 py-2 rounded-xl text-xs font-black bg-purple-950 border border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-slate-950 transition-all flex items-center gap-1 shadow"
+            title="Configure Render Backend URL"
+          >
+            <Globe className="w-4 h-4" />
+            Render API URL
           </button>
         </div>
       </div>

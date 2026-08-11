@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { getBackendUrl } from './config';
 
 class SocketService {
   constructor() {
@@ -6,14 +7,16 @@ class SocketService {
   }
 
   connect() {
+    const backendUrl = getBackendUrl();
     if (!this.socket) {
-      this.socket = io(window.location.origin, {
-        reconnectionAttempts: 5,
-        timeout: 10000
+      this.socket = io(backendUrl, {
+        reconnectionAttempts: 10,
+        timeout: 10000,
+        transports: ['websocket', 'polling']
       });
 
       this.socket.on('connect', () => {
-        console.log('[SocketService] Connected to Karta server:', this.socket.id);
+        console.log('[SocketService] Connected to Joye Bingo server:', this.socket.id, 'at', backendUrl);
       });
 
       this.socket.on('disconnect', () => {
@@ -44,6 +47,10 @@ class SocketService {
 
   claimBingo(roomId, userId, cardId) {
     this.getSocket().emit('claim_bingo', { roomId, userId, cardId });
+  }
+
+  addBotPlayer(roomId) {
+    this.getSocket().emit('add_bot_player', { roomId });
   }
 
   hostDrawBall(roomId) {

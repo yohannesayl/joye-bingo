@@ -10,7 +10,8 @@ import AuthModal from './components/AuthModal';
 import { getTelegramData } from './services/telegramService';
 import { socketService } from './services/socketService';
 import { sound } from './services/soundService';
-import { X, HelpCircle, PhoneCall, Send, AlertTriangle } from 'lucide-react';
+import { getBackendUrl, setBackendUrl } from './services/config';
+import { X, HelpCircle, PhoneCall, Send, AlertTriangle, Globe } from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -24,10 +25,12 @@ export default function App() {
   const [showRules, setShowRules] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showServerConfigModal, setShowServerConfigModal] = useState(false);
+  const [customServerUrl, setCustomServerUrl] = useState(getBackendUrl());
   const [playingNoticeModal, setPlayingNoticeModal] = useState(false);
   const [lang, setLang] = useState('am');
 
-  // Initialize & Restore Exact User Balance From Database
+  // Initialize & Restore User From Database
   useEffect(() => {
     const tgInfo = getTelegramData();
     setIsTelegram(tgInfo.isTelegram);
@@ -43,8 +46,8 @@ export default function App() {
       };
       loginUser(initialUser);
     } else {
-      // FETCH EXACT REAL BALANCE FROM BACKEND DATABASE!
-      fetch(`/api/wallet/${initialUser.id}`)
+      const backendUrl = getBackendUrl();
+      fetch(`${backendUrl}/api/wallet/${initialUser.id}`)
         .then(res => res.json())
         .then(data => {
           if (data && data.balance !== undefined) {
@@ -63,7 +66,8 @@ export default function App() {
 
   const loginUser = async (userInfo) => {
     try {
-      const res = await fetch('/api/auth/login', {
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userInfo)
@@ -87,7 +91,8 @@ export default function App() {
   const refreshUser = async () => {
     if (user?.id) {
       try {
-        const res = await fetch(`/api/wallet/${user.id}`);
+        const backendUrl = getBackendUrl();
+        const res = await fetch(`${backendUrl}/api/wallet/${user.id}`);
         const data = await res.json();
         if (data && data.balance !== undefined) {
           const updated = { ...user, balance: data.balance };
@@ -101,7 +106,8 @@ export default function App() {
   const handleAddFreeCoins = async () => {
     if (!user?.id) return;
     try {
-      const res = await fetch('/api/wallet/free-coins', {
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/wallet/free-coins`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id })
@@ -118,6 +124,14 @@ export default function App() {
     }
   };
 
+  // Save Custom Render Server URL
+  const handleSaveServerUrl = () => {
+    sound.playClick();
+    setBackendUrl(customServerUrl);
+    setShowServerConfigModal(false);
+    window.location.reload();
+  };
+
   // Socket setup & Room state handler
   useEffect(() => {
     const socket = socketService.connect();
@@ -132,7 +146,6 @@ export default function App() {
       }
       setRooms(prev => prev.map(r => r.id === roomDetails.id ? { ...r, ...roomDetails } : r));
 
-      // AUTO REJOIN FEATURE: ONLY IF PLAYER ALREADY HAS A CONFIRMED CARD IN THIS MATCH!
       if (user?.id && roomDetails.purchasedCards) {
         const userHasCard = roomDetails.purchasedCards.some(cp => cp.userId === user.id);
         if (userHasCard && (roomDetails.status === 'COUNTDOWN' || roomDetails.status === 'PLAYING')) {
@@ -270,6 +283,7 @@ export default function App() {
           <HostDashboard
             rooms={rooms}
             socket={socketService.getSocket()}
+            onOpenServerConfig={() => setShowServerConfigModal(true)}
           />
         )}
 
@@ -286,11 +300,46 @@ export default function App() {
         />
       )}
 
+      {/* SERVER BACKEND URL CONFIG MODAL */}
+      {showServerConfigModal && (
+        <div className="fixed inset-0 z-50 bg-[#1e0a2f]/95 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#241338] border-2 border-yellow-400 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-popIn">
+            <div className="flex items-center justify-between border-b border-purple-800 pb-3">
+              <h3 className="font-extrabold text-lg text-white flex items-center gap-2">
+                <Globe className="w-5 h-5 text-yellow-400" />
+                Configure Render Backend API URL
+              </h3>
+              <button onClick={() => setShowServerConfigModal(false)} className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300">
+              Paste your deployed Render backend URL (e.g. <code>https://joye-bingo-api.onrender.com</code>) so Vercel frontend connects live to your database:
+            </p>
+
+            <input
+              type="text"
+              placeholder="https://joye-bingo-api.onrender.com"
+              value={customServerUrl}
+              onChange={(e) => setCustomServerUrl(e.target.value)}
+              className="w-full bg-[#120524] border border-purple-700 text-yellow-400 font-mono text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-yellow-400"
+            />
+
+            <button
+              onClick={handleSaveServerUrl}
+              className="w-full py-3 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black text-xs uppercase tracking-wider shadow"
+            >
+              Save Backend URL & Connect
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* MID-GAME PLAYING NOTICE MODAL */}
       {playingNoticeModal && (
         <div className="fixed inset-0 z-50 bg-[#1e0a2f]/95 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#241338] border-2 border-yellow-400 rounded-3xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl animate-popIn">
-            
             <div className="w-16 h-16 rounded-full bg-yellow-400 text-slate-950 flex items-center justify-center mx-auto shadow-lg animate-pulse">
               <AlertTriangle className="w-8 h-8" />
             </div>

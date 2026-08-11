@@ -230,6 +230,10 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('add_bot_player', ({ roomId }) => {
+    roomManager.addBotToRoom(roomId);
+  });
+
   // Host Controls
   socket.on('host_draw_ball', ({ roomId }) => {
     const ball = roomManager.drawNextBall(roomId);

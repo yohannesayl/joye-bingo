@@ -1,121 +1,120 @@
-import { generateBingoCard, validateBingoClaim, getLetterForNumber } from './gameEngine.js';
+import { generateBingoCard } from './gameEngine.js';
 import { db } from './db.js';
 
 export class RoomManager {
   constructor(io) {
     this.io = io;
     this.rooms = new Map();
+    this.roomPrices = {
+      room_10: { stake: 10, commission: 15 },
+      room_20: { stake: 20, commission: 15 },
+      room_30: { stake: 30, commission: 15 },
+      room_50: { stake: 50, commission: 15 },
+      room_80: { stake: 80, commission: 15 },
+      room_100: { stake: 100, commission: 10 },
+      room_150: { stake: 150, commission: 10 },
+      room_200: { stake: 200, commission: 10 },
+      room_300: { stake: 300, commission: 10 },
+    };
     this.initDefaultRooms();
   }
 
   initDefaultRooms() {
-    const defaultRooms = [
-      { id: 'room_10', name: '10birr Match', stake: 10, minPlayers: 2, houseCommission: 0.15 },
-      { id: 'room_20', name: '20birr Match', stake: 20, minPlayers: 2, houseCommission: 0.15 },
-      { id: 'room_30', name: '30birr Match', stake: 30, minPlayers: 2, houseCommission: 0.15 },
-      { id: 'room_50', name: '50birr Match', stake: 50, minPlayers: 2, houseCommission: 0.15 },
-      { id: 'room_80', name: '80birr Match', stake: 80, minPlayers: 2, houseCommission: 0.15 },
-      { id: 'room_100', name: '100birr Match', stake: 100, minPlayers: 2, houseCommission: 0.10 },
-      { id: 'room_150', name: '150birr Match', stake: 150, minPlayers: 2, houseCommission: 0.10 },
-      { id: 'room_200', name: '200birr Match', stake: 200, minPlayers: 2, houseCommission: 0.10 },
-      { id: 'room_300', name: '300birr Match', stake: 300, minPlayers: 2, houseCommission: 0.10 },
+    const roomConfigs = [
+      { id: 'room_10', name: '10birr Match', stake: 10 },
+      { id: 'room_20', name: '20birr Match', stake: 20 },
+      { id: 'room_30', name: '30birr Match', stake: 30 },
+      { id: 'room_50', name: '50birr Match', stake: 50 },
+      { id: 'room_80', name: '80birr Match', stake: 80 },
+      { id: 'room_100', name: '100birr Match', stake: 100 },
+      { id: 'room_150', name: '150birr Match', stake: 150 },
+      { id: 'room_200', name: '200birr Match', stake: 200 },
+      { id: 'room_300', name: '300birr Match', stake: 300 }
     ];
 
-    defaultRooms.forEach(config => {
-      this.createRoom(config);
+    roomConfigs.forEach(cfg => {
+      this.rooms.set(cfg.id, {
+        id: cfg.id,
+        name: cfg.name,
+        stake: cfg.stake,
+        status: 'WAITING_FOR_PLAYERS', // 'WAITING_FOR_PLAYERS', 'COUNTDOWN', 'PLAYING', 'FINISHED'
+        countdownSeconds: 45,
+        countdownTimer: null,
+        players: new Map(), // socketId -> { userId, userName }
+        cardPurchases: new Map(), // cardId -> { userId, userName, card }
+        calledBalls: [],
+        remainingBalls: Array.from({ length: 75 }, (_, i) => i + 1),
+        currentBall: null,
+        callInterval: null,
+        callSpeedMs: 3000,
+        pot: 0,
+        winner: null
+      });
     });
   }
 
-  createRoom(config) {
-    const room = {
-      id: config.id,
-      name: config.name,
-      stake: config.stake,
-      minPlayers: 2,
-      houseCommission: config.houseCommission,
-      status: 'WAITING_FOR_PLAYERS', // STARTS AT WAITING WITH 0 PLAYERS!
-      players: new Map(),
-      cardPurchases: new Map(),
-      calledBalls: [],
-      remainingBalls: Array.from({ length: 75 }, (_, i) => i + 1),
-      currentBall: null,
-      countdownTimer: null,
-      callInterval: null,
-      callSpeedMs: 3000,
-      autocall: true,
-      countdownSeconds: 45,
-      winner: null,
-      pot: Math.round(config.stake * 2 * (1 - config.houseCommission)),
-    };
-    this.rooms.set(config.id, room);
-    return room;
+  updateRoomPrices(newPrices) {
+    if (!newPrices) return;
+    Object.keys(newPrices).forEach(roomId => {
+      const room = this.rooms.get(roomId);
+      if (room && newPrices[roomId]) {
+        room.stake = newPrices[roomId].stake || room.stake;
+        this.roomPrices[roomId] = {
+          stake: newPrices[roomId].stake || room.stake,
+          commission: newPrices[roomId].commission || 15
+        };
+        room.pot = this.calculateRoomPot(room);
+      }
+    });
+    this.io.emit('lobby_list', this.getRoomList());
   }
 
   calculateRoomPot(room) {
-    const totalCards = room.cardPurchases.size || room.players.size || 0;
-    const effectiveCards = Math.max(2, totalCards);
-    const grossPot = effectiveCards * room.stake;
-    return Math.round(grossPot * (1 - room.houseCommission));
+    const config = this.roomPrices[room.id] || { stake: room.stake, commission: 15 };
+    const playerCount = Math.max(room.players.size, room.cardPurchases.size);
+    const grossPot = playerCount * config.stake;
+    const houseCut = grossPot * (config.commission / 100);
+    return Math.max(0, Math.round(grossPot - houseCut));
   }
 
   getRoomList() {
-    return Array.from(this.rooms.values()).map(r => {
-      const pot = this.calculateRoomPot(r);
-      return {
-        id: r.id,
-        name: r.name,
-        stake: r.stake,
-        status: r.status,
-        playerCount: r.players.size, // REALTIME JOINED PLAYER COUNT!
-        totalCards: r.cardPurchases.size,
-        pot,
-        possibleWin: `${pot} Birr`,
-        countdownSeconds: r.status === 'WAITING_FOR_PLAYERS' ? 45 : r.countdownSeconds,
-        currentBall: r.currentBall,
-        calledCount: r.calledBalls.length
-      };
-    });
+    return Array.from(this.rooms.values()).map(r => ({
+      id: r.id,
+      name: r.name,
+      stake: r.stake,
+      status: r.status,
+      playerCount: r.players.size,
+      cardsSold: r.cardPurchases.size,
+      pot: this.calculateRoomPot(r),
+      countdownSeconds: r.countdownSeconds
+    }));
   }
 
   getRoomDetails(roomId) {
-    let room = this.rooms.get(roomId);
-    if (!room) {
-      const stakeNum = parseInt(roomId.replace('room_', '')) || 10;
-      room = this.createRoom({ id: roomId, name: `${stakeNum}birr Match`, stake: stakeNum, houseCommission: 0.15 });
-    }
-
-    const pot = this.calculateRoomPot(room);
-    room.pot = pot;
-
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
     return {
       id: room.id,
       name: room.name,
       stake: room.stake,
       status: room.status,
       playerCount: room.players.size,
-      pot,
-      possibleWin: `${pot} Birr`,
+      countdownSeconds: room.countdownSeconds,
       calledBalls: room.calledBalls,
       currentBall: room.currentBall,
-      autocall: room.autocall,
-      callSpeedMs: room.callSpeedMs,
-      countdownSeconds: room.status === 'WAITING_FOR_PLAYERS' ? 45 : room.countdownSeconds,
+      pot: this.calculateRoomPot(room),
       winner: room.winner,
       purchasedCards: Array.from(room.cardPurchases.values()).map(cp => ({
-        cardId: cp.card.id,
+        cardId: cp.cardId,
         userId: cp.userId,
-        userName: cp.userName,
-        card: cp.card
+        userName: cp.userName
       }))
     };
   }
 
   joinRoom(socket, roomId, user) {
     let room = this.rooms.get(roomId);
-    if (!room) {
-      this.getRoomDetails(roomId);
-      room = this.rooms.get(roomId);
-    }
+    if (!room) return { error: 'Room not found' };
 
     // REQUIREMENT 1 & 2: LOCK JOINING WHILE MATCH IS IN PLAYING STATE!
     if (room.status === 'PLAYING') {
@@ -137,7 +136,6 @@ export class RoomManager {
 
     room.pot = this.calculateRoomPot(room);
 
-    // REQUIREMENT 5: TIMER STARTS FRESHLY ONLY WHEN MORE THAN 1 PLAYER HAS JOINED (2+ PLAYERS)!
     if (room.players.size >= 2) {
       if (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer) {
         this.startCountdown(roomId);
@@ -148,6 +146,41 @@ export class RoomManager {
       if (room.countdownTimer) {
         clearInterval(room.countdownTimer);
         room.countdownTimer = null;
+      }
+    }
+
+    this.broadcastRoomUpdate(roomId);
+    return { success: true, room: this.getRoomDetails(roomId) };
+  }
+
+  addBotToRoom(roomId) {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+
+    const botId = `bot_${Date.now()}`;
+    const botName = `Bot_Tigist`;
+
+    room.players.set(`socket_${botId}`, {
+      socketId: `socket_${botId}`,
+      userId: botId,
+      userName: botName
+    });
+
+    const randomCardId = Math.floor(Math.random() * 99) + 1;
+    const card = generateBingoCard(randomCardId);
+    room.cardPurchases.set(randomCardId, {
+      cardId: randomCardId,
+      userId: botId,
+      userName: botName,
+      card,
+      isBot: true
+    });
+
+    room.pot = this.calculateRoomPot(room);
+
+    if (room.players.size >= 2) {
+      if (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer) {
+        this.startCountdown(roomId);
       }
     }
 
@@ -178,36 +211,45 @@ export class RoomManager {
 
   buyCard(socket, roomId, userId, cardId) {
     let room = this.rooms.get(roomId);
-    if (!room) {
-      this.getRoomDetails(roomId);
-      room = this.rooms.get(roomId);
-    }
+    if (!room) return { error: 'Room not found' };
 
     if (room.status === 'PLAYING') {
-      return { error: 'Match in progress. Cannot purchase cards mid-game!' };
+      return { error: 'Card buying locked during active match!' };
+    }
+
+    if (room.cardPurchases.has(cardId)) {
+      const buyer = room.cardPurchases.get(cardId);
+      if (buyer.userId !== userId) {
+        return { error: 'Card already selected by another player!' };
+      }
     }
 
     const user = db.getUser(userId);
-    if (user && room.stake > 0 && user.balance >= room.stake) {
-      db.updateBalance(userId, -room.stake);
+    if (user.balance < room.stake) {
+      return { error: 'Insufficient wallet balance to buy card!' };
     }
+
+    db.updateBalance(userId, -room.stake);
 
     const card = generateBingoCard(cardId);
     room.cardPurchases.set(cardId, {
       cardId,
-      userId: user ? user.id : userId,
-      userName: user ? (user.displayName || user.username) : 'Player',
-      card,
-      isBot: false
+      userId,
+      userName: user.displayName || user.username,
+      card
     });
 
     room.pot = this.calculateRoomPot(room);
-    this.broadcastRoomUpdate(roomId);
 
+    if (room.players.size >= 2 && (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer)) {
+      this.startCountdown(roomId);
+    }
+
+    this.broadcastRoomUpdate(roomId);
     return {
       success: true,
-      card,
-      balance: user ? db.getUser(userId).balance : 10000,
+      balance: user.balance,
+      cardId,
       pot: room.pot
     };
   }
@@ -216,21 +258,12 @@ export class RoomManager {
     const room = this.rooms.get(roomId);
     if (!room) return;
 
-    if (room.callInterval) {
-      clearInterval(room.callInterval);
-      room.callInterval = null;
-    }
     if (room.countdownTimer) {
       clearInterval(room.countdownTimer);
-      room.countdownTimer = null;
     }
 
     room.status = 'COUNTDOWN';
     room.countdownSeconds = 45;
-    room.calledBalls = [];
-    room.currentBall = null;
-    room.winner = null;
-
     this.broadcastRoomUpdate(roomId);
 
     room.countdownTimer = setInterval(() => {
@@ -243,101 +276,104 @@ export class RoomManager {
         return;
       }
 
-      room.countdownSeconds--;
-      this.io.to(roomId).emit('room_countdown', { roomId, seconds: room.countdownSeconds });
+      room.countdownSeconds -= 1;
 
       if (room.countdownSeconds <= 0) {
         clearInterval(room.countdownTimer);
         room.countdownTimer = null;
-        this.startGame(roomId);
+        this.startMatch(roomId);
+      } else {
+        this.broadcastRoomUpdate(roomId);
       }
     }, 1000);
   }
 
-  startGame(roomId) {
+  startMatch(roomId) {
     const room = this.rooms.get(roomId);
     if (!room) return;
-
-    if (room.players.size < 2) {
-      room.status = 'WAITING_FOR_PLAYERS';
-      room.countdownSeconds = 45;
-      this.broadcastRoomUpdate(roomId);
-      return;
-    }
 
     room.status = 'PLAYING';
     room.calledBalls = [];
     room.remainingBalls = Array.from({ length: 75 }, (_, i) => i + 1);
-
-    for (let i = room.remainingBalls.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [room.remainingBalls[i], room.remainingBalls[j]] = [room.remainingBalls[j], room.remainingBalls[i]];
-    }
+    room.currentBall = null;
     room.winner = null;
 
     this.broadcastRoomUpdate(roomId);
-    this.io.to(roomId).emit('game_started', { roomId, pot: room.pot });
+    this.startAutocall(roomId);
+  }
+
+  startAutocall(roomId) {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
 
     if (room.callInterval) clearInterval(room.callInterval);
 
     room.callInterval = setInterval(() => {
-      if (room.status === 'PLAYING' && room.remainingBalls.length > 0) {
-        this.drawNextBall(roomId);
-      } else {
+      if (room.status !== 'PLAYING') {
+        clearInterval(room.callInterval);
+        return;
+      }
+
+      const ball = this.drawNextBall(roomId);
+      if (!ball) {
         clearInterval(room.callInterval);
       }
-    }, room.callSpeedMs);
+    }, room.callSpeedMs || 3000);
   }
 
   drawNextBall(roomId) {
     const room = this.rooms.get(roomId);
-    if (!room || room.status !== 'PLAYING' || room.remainingBalls.length === 0) return null;
+    if (!room || room.remainingBalls.length === 0) return null;
 
-    const ballNum = room.remainingBalls.shift();
-    const ballLetter = getLetterForNumber(ballNum);
-    const ballObj = { number: ballNum, letter: ballLetter, full: `${ballLetter}-${ballNum}` };
+    const randomIndex = Math.floor(Math.random() * room.remainingBalls.length);
+    const ballNumber = room.remainingBalls.splice(randomIndex, 1)[0];
 
-    room.calledBalls.push(ballNum);
-    room.currentBall = ballObj;
+    let letter = 'B';
+    if (ballNumber >= 16 && ballNumber <= 30) letter = 'I';
+    else if (ballNumber >= 31 && ballNumber <= 45) letter = 'N';
+    else if (ballNumber >= 46 && ballNumber <= 60) letter = 'G';
+    else if (ballNumber >= 61 && ballNumber <= 75) letter = 'O';
+
+    const ball = { letter, number: ballNumber };
+    room.calledBalls.push(ballNumber);
+    room.currentBall = ball;
 
     this.io.to(roomId).emit('ball_called', {
       roomId,
-      ball: ballObj,
-      calledBalls: room.calledBalls,
-      remainingCount: room.remainingBalls.length
+      ball,
+      calledBalls: room.calledBalls
     });
 
-    return ballObj;
+    this.broadcastRoomUpdate(roomId);
+    return ball;
   }
 
   claimBingo(socket, roomId, userId, cardId) {
     const room = this.rooms.get(roomId);
-    if (!room) return { error: 'Room not found' };
+    if (!room || room.status !== 'PLAYING') return { error: 'No active match to claim Bingo!' };
 
-    const cardPurchase = room.cardPurchases.get(cardId);
-    const userName = cardPurchase ? cardPurchase.userName : (socket.user ? socket.user.displayName : 'Player');
+    const purchase = room.cardPurchases.get(cardId);
+    if (!purchase || purchase.userId !== userId) {
+      return { error: 'You do not own this card!' };
+    }
 
-    this.confirmWinner(room, userId, userName, cardId, '5 in a Row');
-    return { success: true, winner: room.winner };
-  }
-
-  confirmWinner(room, userId, userName, cardId, pattern) {
-    if (room.status === 'FINISHED') return;
-
+    if (room.callInterval) clearInterval(room.callInterval);
     room.status = 'FINISHED';
-    if (room.callInterval) {
-      clearInterval(room.callInterval);
-      room.callInterval = null;
+
+    const prize = room.pot || this.calculateRoomPot(room);
+    db.updateBalance(userId, prize);
+
+    let userName = purchase.userName;
+    const userObj = db.getUser(userId);
+    if (userObj) {
+      userObj.totalWins = (userObj.totalWins || 0) + 1;
+      userObj.totalEarned = (userObj.totalEarned || 0) + prize;
+      userObj.gamesPlayed = (userObj.gamesPlayed || 0) + 1;
+      db.save();
+      userName = userObj.displayName || userObj.username;
     }
 
-    const prize = room.pot;
-
-    if (userId && !userId.startsWith('bot_')) {
-      const winnerUser = db.getUser(userId);
-      if (winnerUser) {
-        db.updateBalance(userId, prize);
-      }
-    }
+    let pattern = '5 in a Row (Horizontal)';
 
     room.winner = {
       userId,
@@ -354,7 +390,6 @@ export class RoomManager {
 
     this.broadcastRoomUpdate(room.id);
 
-    // REQUIREMENT 3 & 4: AFTER GAME COMPLETES, RESET PLAYER COUNT & CARD PURCHASES TO 0 AND WAIT FOR NEW JOINS!
     setTimeout(() => {
       this.resetAndNextMatch(room.id);
     }, 10000);
@@ -367,7 +402,6 @@ export class RoomManager {
     if (room.callInterval) clearInterval(room.callInterval);
     if (room.countdownTimer) clearInterval(room.countdownTimer);
 
-    // RESET PLAYERS AND CARDS TO 0!
     room.players.clear();
     room.cardPurchases.clear();
     room.calledBalls = [];
@@ -375,7 +409,6 @@ export class RoomManager {
     room.currentBall = null;
     room.winner = null;
 
-    // WAIT FOR NEW PLAYERS TO JOIN FRESHLY (START COUNT FROM 0 -> 1 -> 2+)
     room.status = 'WAITING_FOR_PLAYERS';
     room.countdownSeconds = 45;
     this.broadcastRoomUpdate(roomId);

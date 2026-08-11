@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, VolumeX, ArrowLeft, Users, Trophy, Flame, Sparkles, CheckCircle2, Clock, UserPlus } from 'lucide-react';
+import { Volume2, VolumeX, ArrowLeft, Users, Trophy, Flame, Sparkles, CheckCircle2, Clock, UserPlus, Bot } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { sound } from '../services/soundService';
+import { socketService } from '../services/socketService';
 
 // BINGO RULE PATTERN CHECKER (Row, Column, Diagonal, or 4 Corners)
 const checkCardBingoPattern = (matrix, markedSet) => {
@@ -74,7 +75,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   const [audioStarted, setAudioStarted] = useState(false);
   const [isGameOver, setIsGameOver] = useState(room?.status === 'FINISHED');
 
-  // COUNTDOWN TIMER & STEP 4 BALL CALLING STATE
+  // COUNTDOWN TIMER & PLAYING STATUS STATE
   const [step3Countdown, setStep3Countdown] = useState(room?.countdownSeconds !== undefined ? room.countdownSeconds : 45);
   const [isStep4Active, setIsStep4Active] = useState(room?.status === 'PLAYING' || (room?.calledBalls && room.calledBalls.length > 0));
   const [liveCalledBalls, setLiveCalledBalls] = useState(room?.calledBalls || []);
@@ -194,7 +195,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     });
   }, [room?.purchasedCards, user?.id]);
 
-  // AUTO CARD SELECTOR (AUTO DAUBER): AUTOMATICALLY MARKS CALLED NUMBERS WHEN ENABLED!
+  // AUTO CARD SELECTOR (AUTO DAUBER)
   useEffect(() => {
     if (!autoCardSelector || !isStep4Active || isGameOver) return;
 
@@ -248,6 +249,11 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     });
   };
 
+  const handleAddBot = () => {
+    sound.playClick();
+    socketService.addBotPlayer(room?.id || 'room_10');
+  };
+
   const activeCard = myCards[0] || defaultCard72;
   const currentMarkedSet = daubedMap[activeCard.id] || new Set(['FREE']);
 
@@ -267,7 +273,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     confetti({ particleCount: 240, spread: 140, origin: { y: 0.4 } });
     setIsGameOver(true);
 
-    const winAmount = room?.pot || 110;
+    const winAmount = room?.pot || 17;
 
     const winDetails = {
       userId: user?.id,
@@ -355,7 +361,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
         </button>
       </div>
 
-      {/* WAITING FOR 2+ PLAYERS BANNER */}
+      {/* WAITING FOR 2+ PLAYERS BANNER WITH INSTANT ADD BOT PLAYER BUTTON */}
       {isWaitingForPlayers && !isGameOver && (
         <div className="bg-[#241338]/90 border-2 border-yellow-400 p-5 rounded-3xl text-center space-y-3 shadow-2xl animate-popIn">
           <div className="flex items-center justify-center gap-2 text-yellow-400 font-black text-sm">
@@ -371,8 +377,18 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
             Current Joined Players: {room?.playerCount || 1} / 2 Minimum
           </div>
 
-          <p className="text-xs text-slate-300 max-w-md mx-auto">
-            Open another browser window or invite a friend to join this stake room! As soon as Player #2 joins, the selection countdown will start automatically.
+          <div className="pt-2">
+            <button
+              onClick={handleAddBot}
+              className="px-6 py-3 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black text-xs uppercase tracking-wider shadow-xl active:scale-95 transition-all inline-flex items-center gap-2"
+            >
+              <Bot className="w-5 h-5 text-slate-950" />
+              <span>🤖 Add Test Bot Player to Start Match Now</span>
+            </button>
+          </div>
+
+          <p className="text-[11px] text-slate-300 max-w-md mx-auto">
+            Open another browser window or click the button above to add a test opponent! As soon as Player #2 joins, the selection countdown starts automatically.
           </p>
         </div>
       )}
@@ -386,7 +402,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
           </div>
 
           <h3 className="text-base sm:text-lg font-extrabold text-white">
-            Step 3: Waiting for 1-minute selection timer to reach 0:00...
+            Step 3: Waiting for selection timer to reach 0:00...
           </h3>
 
           <div className="digital-clock-green text-4xl font-mono py-1">

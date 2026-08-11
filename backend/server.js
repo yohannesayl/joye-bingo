@@ -20,6 +20,30 @@ app.use(express.json());
 
 const roomManager = new RoomManager(io);
 
+// ROOT LANDING PAGE FOR BACKEND SERVER
+app.get('/', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Joye Bingo Backend API</title>
+        <style>
+          body { font-family: 'Outfit', sans-serif; text-align: center; padding: 50px; background: #200936; color: #fff; }
+          h1 { color: #ffce00; }
+          .status { color: #4ade80; font-weight: bold; font-size: 1.2rem; }
+          a { color: #ffce00; text-decoration: underline; }
+        </style>
+      </head>
+      <body>
+        <h1>🎯 Joye Bingo Backend API & WebSocket Server</h1>
+        <p class="status">✅ Server Status: LIVE & HEALTHY</p>
+        <p>Real-time Socket.io match coordinator and database API is running.</p>
+        <p><a href="/api/health">Check /api/health endpoint</a></p>
+      </body>
+    </html>
+  `);
+});
+
 // REST API ROUTES
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', name: 'Joye Bingo API', version: '1.0.0', time: new Date() });

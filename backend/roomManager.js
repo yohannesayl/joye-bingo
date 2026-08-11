@@ -296,6 +296,9 @@ export class RoomManager {
     room.currentBall = null;
     room.winner = null;
 
+    // Draw first ball immediately so 3D caller displays ball at 0:00!
+    this.drawNextBall(roomId);
+
     this.broadcastRoomUpdate(roomId);
     this.startAutocall(roomId);
   }

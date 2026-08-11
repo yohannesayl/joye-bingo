@@ -140,12 +140,25 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
       }
     };
 
+    const handleRoomState = (data) => {
+      if (!data) return;
+      if (data.status === 'PLAYING' || (data.calledBalls && data.calledBalls.length > 0)) {
+        setIsStep4Active(true);
+        setIsGameOver(false);
+      }
+      if (data.currentBall) setLiveCurrentBall(data.currentBall);
+      if (data.calledBalls) setLiveCalledBalls(data.calledBalls);
+      if (data.countdownSeconds !== undefined) setStep3Countdown(data.countdownSeconds);
+    };
+
     socket.on('ball_called', handleBallCalled);
     socket.on('bingo_winner', handleBingoWinner);
+    socket.on('room_state', handleRoomState);
 
     return () => {
       socket.off('ball_called', handleBallCalled);
       socket.off('bingo_winner', handleBingoWinner);
+      socket.off('room_state', handleRoomState);
     };
   }, [socket, voiceOn, isGameOver, user?.id]);
 

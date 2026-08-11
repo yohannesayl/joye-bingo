@@ -87,6 +87,9 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   // Sync room props updates
   useEffect(() => {
     if (!room) return;
+    if (room.status === 'PLAYING' || room.status === 'COUNTDOWN' || (room.calledBalls && room.calledBalls.length > 0)) {
+      setIsGameOver(false);
+    }
     if (room.status === 'PLAYING' || (room.calledBalls && room.calledBalls.length > 0)) {
       setIsStep4Active(true);
     }

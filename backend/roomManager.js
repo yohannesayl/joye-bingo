@@ -162,7 +162,7 @@ export class RoomManager {
     }
 
     this.broadcastRoomUpdate(roomId);
-    return { success: true, isExistingPlayer, room: this.getRoomDetails(roomId) };
+    return { success: true, room: this.getRoomDetails(roomId) };
   }
 
   addBotToRoom(roomId) {

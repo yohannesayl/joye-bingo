@@ -87,25 +87,17 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   // Sync room props updates
   useEffect(() => {
     if (!room) return;
-    if (room.status === 'PLAYING' || room.status === 'COUNTDOWN' || (room.calledBalls && room.calledBalls.length > 0)) {
-      setIsGameOver(false);
-    }
     if (room.status === 'PLAYING' || (room.calledBalls && room.calledBalls.length > 0)) {
+      setIsGameOver(false);
       setIsStep4Active(true);
     }
     if (room.status === 'FINISHED') {
       setIsGameOver(true);
     }
-    if (room.countdownSeconds !== undefined) {
-      setStep3Countdown(room.countdownSeconds);
-      if (room.countdownSeconds <= 0) {
-        setIsStep4Active(true);
-      }
-    }
     if (room.calledBalls) setLiveCalledBalls(room.calledBalls);
     if (room.currentBall) setLiveCurrentBall(room.currentBall);
     if (room.winner) setWinnerModal(room.winner);
-  }, [room?.status, room?.countdownSeconds, room?.calledBalls, room?.currentBall, room?.winner]);
+  }, [room?.status, room?.calledBalls, room?.currentBall, room?.winner]);
 
   // SOCKET REAL-TIME SYNC: ALL BROWSERS RECEIVE SAME DRAWN BALLS & WINNER BROADCAST!
   useEffect(() => {

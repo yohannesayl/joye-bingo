@@ -157,9 +157,14 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     };
   }, [socket, voiceOn, isGameOver, user?.id]);
 
-  // Smooth 1-second countdown ticker (synced with server updates)
+  // Instant zero-delay transition when displayCountdownSeconds reaches 0:00!
   useEffect(() => {
     if (isStep4Active || isGameOver) return;
+
+    if (displayCountdownSeconds <= 0) {
+      setIsStep4Active(true);
+      return;
+    }
 
     const timer = setInterval(() => {
       setStep3Countdown(prev => {
@@ -173,7 +178,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isStep4Active, isGameOver]);
+  }, [displayCountdownSeconds, isStep4Active, isGameOver]);
 
   // GUARANTEED AUTOMATIC BALL DRAWING TICKER (Draws random BINGO numbers out loud every 3s!)
   useEffect(() => {

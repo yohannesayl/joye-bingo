@@ -2,9 +2,15 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { db } from './db.js';
 import { RoomManager } from './roomManager.js';
 import { generateBingoCard } from './gameEngine.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
@@ -20,33 +26,9 @@ app.use(express.json());
 
 const roomManager = new RoomManager(io);
 
-// ROOT LANDING PAGE FOR BACKEND SERVER
-app.get('/', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Joye Bingo Backend API (MongoDB)</title>
-        <style>
-          body { font-family: 'Outfit', sans-serif; text-align: center; padding: 50px; background: #200936; color: #fff; }
-          h1 { color: #ffce00; }
-          .status { color: #4ade80; font-weight: bold; font-size: 1.2rem; }
-          a { color: #ffce00; text-decoration: underline; }
-        </style>
-      </head>
-      <body>
-        <h1>🎯 Joye Bingo Backend API & MongoDB Atlas Server</h1>
-        <p class="status">✅ MongoDB Database (joye-bingo): CONNECTED & LIVE</p>
-        <p>Real-time Socket.io match coordinator and MongoDB user database is running.</p>
-        <p><a href="/api/health">Check /api/health endpoint</a></p>
-      </body>
-    </html>
-  `);
-});
-
-// REST API ROUTES
+// REST API HEALTH ROUTE
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', name: 'Joye Bingo API', db: 'joye-bingo', version: '1.0.0', time: new Date() });
+  res.json({ status: 'ok', name: 'Joye Bingo API', db: 'Joye-bingo', version: '1.0.0', time: new Date() });
 });
 
 // AUTH: REGISTER USER TO MONGO DATABASE
@@ -193,6 +175,43 @@ app.get('/api/card/:cardId', (req, res) => {
   const card = generateBingoCard(cardId);
   res.json(card);
 });
+
+// SERVE FRONTEND STATIC PRODUCTION BUNDLE IF PRESENT (Allows 1-Service Render Deployment!)
+const frontendDistPath = path.join(__dirname, '../frontend/dist');
+if (fs.existsSync(frontendDistPath)) {
+  console.log('📦 Serving production frontend static bundle from:', frontendDistPath);
+  app.use(express.static(frontendDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+      return next();
+    }
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+} else {
+  // ROOT LANDING PAGE FOR BACKEND SERVER
+  app.get('/', (req, res) => {
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Joye Bingo Backend API (MongoDB)</title>
+          <style>
+            body { font-family: 'Outfit', sans-serif; text-align: center; padding: 50px; background: #200936; color: #fff; }
+            h1 { color: #ffce00; }
+            .status { color: #4ade80; font-weight: bold; font-size: 1.2rem; }
+            a { color: #ffce00; text-decoration: underline; }
+          </style>
+        </head>
+        <body>
+          <h1>🎯 Joye Bingo Backend API & MongoDB Atlas Server</h1>
+          <p class="status">✅ MongoDB Database (Joye-bingo): CONNECTED & LIVE</p>
+          <p>Real-time Socket.io match coordinator and MongoDB user database is running.</p>
+          <p><a href="/api/health">Check /api/health endpoint</a></p>
+        </body>
+      </html>
+    `);
+  });
+}
 
 // SOCKET.IO REALTIME EVENTS
 io.on('connection', (socket) => {

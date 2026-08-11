@@ -339,11 +339,14 @@ export class RoomManager {
     room.calledBalls.push(ballNumber);
     room.currentBall = ball;
 
-    this.io.to(roomId).emit('ball_called', {
+    const ballPayload = {
       roomId,
       ball,
       calledBalls: room.calledBalls
-    });
+    };
+
+    this.io.to(roomId).emit('ball_called', ballPayload);
+    this.io.emit('ball_called', ballPayload);
 
     this.broadcastRoomUpdate(roomId);
     return ball;
@@ -418,6 +421,7 @@ export class RoomManager {
     const details = this.getRoomDetails(roomId);
     if (details) {
       this.io.to(roomId).emit('room_state', details);
+      this.io.emit('room_state', details);
     }
     this.io.emit('lobby_list', this.getRoomList());
   }

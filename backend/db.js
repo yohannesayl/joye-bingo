@@ -7,26 +7,26 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DB_FILE = path.join(__dirname, 'data.json');
 
-// MongoDB Atlas URI with provided credentials
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://yohannesayalew99_db_user:3QBaURuEDMP2pK9q@cluster0.mongodb.net/joye-bingo?retryWrites=true&w=majority';
+// MongoDB Atlas URI with provided credentials and database name 'Joye-bingo'
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://yohannesayalew99_db_user:3QBaURuEDMP2pK9q@cluster0.mongodb.net/Joye-bingo?retryWrites=true&w=majority';
 
 let isMongoConnected = false;
 
-// 1. MONGOOSE USER SCHEMA & MODEL
+// 1. MONGOOSE USER SCHEMA & MODEL WITH FIELDS: username, password, phonenumber, amount
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true, trim: true },
   password: { type: String, required: true },
-  phone: { type: String, required: true, unique: true, trim: true },
+  phonenumber: { type: String, required: true, unique: true, trim: true },
+  amount: { type: Number, default: 100 }, // Amount player has to play the game!
+  phone: { type: String, default: '' },
   fullName: { type: String, default: '' },
   displayName: { type: String, default: '' },
-  balance: { type: Number, default: 100 }, // REAL STARTING BALANCE 100 ETB
-  referralCode: { type: String, default: '' },
   totalWins: { type: Number, default: 0 },
   totalEarned: { type: Number, default: 0 },
   gamesPlayed: { type: Number, default: 0 },
   status: { type: String, default: 'ACTIVE' },
   joinedAt: { type: Date, default: Date.now }
-});
+}, { collection: 'users' });
 
 const transactionSchema = new mongoose.Schema({
   userId: { type: String, required: true },
@@ -35,7 +35,7 @@ const transactionSchema = new mongoose.Schema({
   amount: { type: Number, required: true },
   reference: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now }
-});
+}, { collection: 'transactions' });
 
 const gameHistorySchema = new mongoose.Schema({
   roomId: { type: String, required: true },
@@ -45,11 +45,11 @@ const gameHistorySchema = new mongoose.Schema({
   prize: { type: Number, required: true },
   calledCount: { type: Number, default: 0 },
   timestamp: { type: Date, default: Date.now }
-});
+}, { collection: 'game_history' });
 
-const User = mongoose.model('User', userSchema);
-const Transaction = mongoose.model('Transaction', transactionSchema);
-const GameHistory = mongoose.model('GameHistory', gameHistorySchema);
+export const User = mongoose.model('User', userSchema);
+export const Transaction = mongoose.model('Transaction', transactionSchema);
+export const GameHistory = mongoose.model('GameHistory', gameHistorySchema);
 
 class DatabaseService {
   constructor() {
@@ -59,14 +59,14 @@ class DatabaseService {
 
   async connectMongo() {
     try {
-      console.log('🔄 Connecting to MongoDB Atlas (joye-bingo)...');
+      console.log('🔄 Connecting to MongoDB Atlas database (Joye-bingo)...');
       await mongoose.connect(MONGODB_URI, {
         serverSelectionTimeoutMS: 5000
       });
       isMongoConnected = true;
-      console.log('✅ Connected successfully to MongoDB Atlas (joye-bingo database)!');
+      console.log('✅ Connected successfully to MongoDB Atlas (Joye-bingo database)!');
     } catch (err) {
-      console.warn('⚠️ MongoDB connection warning (Falling back to persistent JSON storage):', err.message);
+      console.warn('⚠️ MongoDB connection notice (Using fallback database):', err.message);
       isMongoConnected = false;
     }
   }
@@ -91,10 +91,20 @@ class DatabaseService {
     if (isMongoConnected) {
       try {
         const users = await User.find({}).lean();
-        return users.map(u => ({ ...u, id: u._id.toString() }));
+        return users.map(u => ({
+          ...u,
+          id: u._id.toString(),
+          phone: u.phonenumber || u.phone,
+          balance: u.amount !== undefined ? u.amount : 100
+        }));
       } catch (e) {}
     }
-    return Object.values(this.localData.users);
+
+    return Object.values(this.localData.users).map(u => ({
+      ...u,
+      phonenumber: u.phonenumber || u.phone,
+      amount: u.amount !== undefined ? u.amount : u.balance || 100
+    }));
   }
 
   // GET SINGLE USER BY ID
@@ -105,15 +115,35 @@ class DatabaseService {
       try {
         if (mongoose.Types.ObjectId.isValid(userId)) {
           const user = await User.findById(userId).lean();
-          if (user) return { ...user, id: user._id.toString() };
+          if (user) {
+            return {
+              ...user,
+              id: user._id.toString(),
+              phone: user.phonenumber || user.phone,
+              balance: user.amount !== undefined ? user.amount : 100
+            };
+          }
         }
         const userByUsername = await User.findOne({ username: userId }).lean();
-        if (userByUsername) return { ...userByUsername, id: userByUsername._id.toString() };
+        if (userByUsername) {
+          return {
+            ...userByUsername,
+            id: userByUsername._id.toString(),
+            phone: userByUsername.phonenumber || userByUsername.phone,
+            balance: userByUsername.amount !== undefined ? userByUsername.amount : 100
+          };
+        }
       } catch (e) {}
     }
 
     if (this.localData.users[userId]) {
-      return this.localData.users[userId];
+      const u = this.localData.users[userId];
+      return {
+        ...u,
+        phonenumber: u.phonenumber || u.phone,
+        amount: u.amount !== undefined ? u.amount : u.balance || 100,
+        balance: u.amount !== undefined ? u.amount : u.balance || 100
+      };
     }
 
     // Guest fallback
@@ -121,8 +151,10 @@ class DatabaseService {
       id: userId,
       username: `Player_${userId.slice(-4)}`,
       displayName: `Player #${userId.slice(-4)}`,
+      phonenumber: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
       phone: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
       password: '123',
+      amount: 100,
       balance: 100,
       totalWins: 0,
       totalEarned: 0,
@@ -135,19 +167,21 @@ class DatabaseService {
     return guestUser;
   }
 
-  // REGISTER NEW USER TO MONGO DB
+  // REGISTER NEW USER TO MONGO DB (FIELDS: username, password, phonenumber, amount)
   async registerUser({ fullName, username, phone, password }) {
+    const rawPhone = phone || `09${Math.floor(10000000 + Math.random() * 90000000)}`;
+
     if (isMongoConnected) {
       const existingUser = await User.findOne({
         $or: [
           { username: new RegExp(`^${username}$`, 'i') },
-          { phone: phone }
+          { phonenumber: rawPhone }
         ]
       });
 
       if (existingUser) {
         if (existingUser.username.toLowerCase() === username.toLowerCase()) {
-          throw new Error('Username is already registered in MongoDB! Please log in or pick another username.');
+          throw new Error('Username is already registered in MongoDB! Please log in.');
         }
         throw new Error('Phone number is already registered in MongoDB! Please log in.');
       }
@@ -155,15 +189,24 @@ class DatabaseService {
       const newUser = new User({
         username,
         password,
-        phone,
+        phonenumber: rawPhone,
+        phone: rawPhone,
         fullName: fullName || username,
         displayName: fullName || username,
-        balance: 100, // 100 ETB WELCOME BONUS
-        referralCode: `JOYE${Math.floor(1000 + Math.random() * 9000)}`
+        amount: 100, // Amount player has to play the game!
+        totalWins: 0,
+        totalEarned: 0,
+        gamesPlayed: 0
       });
 
       await newUser.save();
-      return { ...newUser.toObject(), id: newUser._id.toString() };
+      const obj = newUser.toObject();
+      return {
+        ...obj,
+        id: obj._id.toString(),
+        phone: obj.phonenumber,
+        balance: obj.amount
+      };
     }
 
     // Fallback JSON DB
@@ -177,8 +220,10 @@ class DatabaseService {
       id: userId,
       username,
       displayName: fullName || username,
-      phone,
+      phonenumber: rawPhone,
+      phone: rawPhone,
       password,
+      amount: 100,
       balance: 100,
       status: 'ACTIVE',
       joinedAt: new Date().toISOString()
@@ -188,18 +233,19 @@ class DatabaseService {
     return newUser;
   }
 
-  // AUTHENTICATE / LOGIN USER FROM MONGO DB
+  // AUTHENTICATE USER FROM MONGO DB (username/phonenumber + password)
   async authenticateUser({ loginInput, password }) {
     if (isMongoConnected) {
       const user = await User.findOne({
         $or: [
           { username: new RegExp(`^${loginInput}$`, 'i') },
+          { phonenumber: loginInput },
           { phone: loginInput }
         ]
       });
 
       if (!user) {
-        throw new Error('User not found in database! Please check your username or phone number.');
+        throw new Error('User not found in MongoDB! Please check your username or phone number.');
       }
 
       if (user.status === 'BLOCKED') {
@@ -210,13 +256,19 @@ class DatabaseService {
         throw new Error('Incorrect password! Please try again.');
       }
 
-      return { ...user.toObject(), id: user._id.toString() };
+      const obj = user.toObject();
+      return {
+        ...obj,
+        id: obj._id.toString(),
+        phone: obj.phonenumber || obj.phone,
+        balance: obj.amount !== undefined ? obj.amount : 100
+      };
     }
 
     // Local JSON DB authentication
     const usersList = Object.values(this.localData.users);
     const user = usersList.find(u =>
-      (u.username.toLowerCase() === loginInput.toLowerCase() || u.phone === loginInput)
+      (u.username.toLowerCase() === loginInput.toLowerCase() || u.phonenumber === loginInput || u.phone === loginInput)
     );
 
     if (!user) {
@@ -227,35 +279,40 @@ class DatabaseService {
       throw new Error('Incorrect password! Please try again.');
     }
 
-    return user;
+    return {
+      ...user,
+      phone: user.phonenumber || user.phone,
+      balance: user.amount !== undefined ? user.amount : user.balance || 100
+    };
   }
 
-  // UPDATE USER BALANCE IN MONGO DB
+  // UPDATE PLAYER AMOUNT IN MONGO DB
   async updateBalance(userId, delta) {
     if (isMongoConnected) {
       try {
         if (mongoose.Types.ObjectId.isValid(userId)) {
           const user = await User.findById(userId);
           if (user) {
-            user.balance = Math.max(0, user.balance + delta);
+            user.amount = Math.max(0, (user.amount !== undefined ? user.amount : 100) + delta);
             await user.save();
-            return user.balance;
+            return user.amount;
           }
         }
         const userByUsername = await User.findOne({ username: userId });
         if (userByUsername) {
-          userByUsername.balance = Math.max(0, userByUsername.balance + delta);
+          userByUsername.amount = Math.max(0, (userByUsername.amount !== undefined ? userByUsername.amount : 100) + delta);
           await userByUsername.save();
-          return userByUsername.balance;
+          return userByUsername.amount;
         }
       } catch (e) {}
     }
 
     const localUser = await this.getUser(userId);
     if (localUser) {
-      localUser.balance = Math.max(0, (localUser.balance || 0) + delta);
+      localUser.amount = Math.max(0, (localUser.amount !== undefined ? localUser.amount : localUser.balance || 100) + delta);
+      localUser.balance = localUser.amount;
       this.saveLocal();
-      return localUser.balance;
+      return localUser.amount;
     }
     return 0;
   }
@@ -269,7 +326,8 @@ class DatabaseService {
           if (user) {
             user.status = user.status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
             await user.save();
-            return { ...user.toObject(), id: user._id.toString() };
+            const obj = user.toObject();
+            return { ...obj, id: obj._id.toString(), balance: obj.amount };
           }
         }
       } catch (e) {}
@@ -299,7 +357,7 @@ class DatabaseService {
     if (isMongoConnected) {
       try {
         const users = await User.find({}).sort({ totalEarned: -1 }).limit(20).lean();
-        return users.map(u => ({ ...u, id: u._id.toString() }));
+        return users.map(u => ({ ...u, id: u._id.toString(), balance: u.amount }));
       } catch (e) {}
     }
     return Object.values(this.localData.users).sort((a, b) => (b.totalEarned || 0) - (a.totalEarned || 0)).slice(0, 20);

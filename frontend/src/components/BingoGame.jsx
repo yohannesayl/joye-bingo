@@ -162,6 +162,24 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     };
   }, [socket, voiceOn, isGameOver, user?.id]);
 
+  // Smooth 1-second countdown ticker (synced with server updates)
+  useEffect(() => {
+    if (isStep4Active || isGameOver) return;
+
+    const timer = setInterval(() => {
+      setStep3Countdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsStep4Active(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isStep4Active, isGameOver]);
+
   // Default fallback card (Card No. 72)
   const defaultCard72 = {
     id: 72,

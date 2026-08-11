@@ -180,7 +180,9 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
             }
             if (r.currentBall) setLiveCurrentBall(r.currentBall);
             if (r.calledBalls) setLiveCalledBalls(r.calledBalls);
-            if (r.countdownSeconds !== undefined) setStep3Countdown(r.countdownSeconds);
+            if (r.countdownSeconds !== undefined && r.countdownSeconds < step3Countdown) {
+              setStep3Countdown(r.countdownSeconds);
+            }
             if (r.winner) setWinnerModal(r.winner);
           }
         }
@@ -188,7 +190,25 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     }, 1000);
 
     return () => clearInterval(pollInterval);
-  }, [room?.id]);
+  }, [room?.id, step3Countdown]);
+
+  // SMOOTH 1-SECOND VISUAL COUNTDOWN TICKER (60 -> 59 -> 58... -> 0:00!)
+  useEffect(() => {
+    if (isStep4Active || isGameOver) return;
+
+    const timer = setInterval(() => {
+      setStep3Countdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsStep4Active(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isStep4Active, isGameOver]);
 
   // Default fallback card (Card No. 72)
   const defaultCard72 = {

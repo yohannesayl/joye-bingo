@@ -7,8 +7,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DB_FILE = path.join(__dirname, 'data.json');
 
-// MongoDB Atlas URI with provided credentials and database name 'Joye-bingo'
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://yohannesayalew99_db_user:3QBaURuEDMP2pK9q@cluster0.mongodb.net/Joye-bingo?retryWrites=true&w=majority';
+// MongoDB Atlas URI with exact cluster connection string
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://yohannesayalew99_db_user:3QBaURuEDMP2pK9q@cluster0.fqlu2pr.mongodb.net/Joye-bingo?retryWrites=true&w=majority&appName=Cluster0';
 
 let isMongoConnected = false;
 

@@ -87,19 +87,22 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   // Sync room props updates
   useEffect(() => {
     if (!room) return;
-    if (room.status === 'PLAYING' || room.status === 'COUNTDOWN' || (room.calledBalls && room.calledBalls.length > 0)) {
-      setIsGameOver(false);
-    }
     if (room.status === 'PLAYING' || (room.calledBalls && room.calledBalls.length > 0)) {
+      setIsGameOver(false);
       setIsStep4Active(true);
+    } else {
+      setIsStep4Active(false);
     }
     if (room.status === 'FINISHED') {
       setIsGameOver(true);
     }
+    if (room.countdownSeconds !== undefined) {
+      setStep3Countdown(room.countdownSeconds);
+    }
     if (room.calledBalls) setLiveCalledBalls(room.calledBalls);
     if (room.currentBall) setLiveCurrentBall(room.currentBall);
     if (room.winner) setWinnerModal(room.winner);
-  }, [room?.status, room?.calledBalls, room?.currentBall, room?.winner]);
+  }, [room?.status, room?.countdownSeconds, room?.calledBalls, room?.currentBall, room?.winner]);
 
   // SOCKET REAL-TIME SYNC: ALL BROWSERS RECEIVE SAME DRAWN BALLS & WINNER BROADCAST!
   useEffect(() => {
@@ -139,6 +142,8 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
       if (data.status === 'PLAYING' || (data.calledBalls && data.calledBalls.length > 0)) {
         setIsStep4Active(true);
         setIsGameOver(false);
+      } else {
+        setIsStep4Active(false);
       }
       if (data.currentBall) setLiveCurrentBall(data.currentBall);
       if (data.calledBalls) setLiveCalledBalls(data.calledBalls);
@@ -155,24 +160,6 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
       socket.off('room_state', handleRoomState);
     };
   }, [socket, voiceOn, isGameOver, user?.id]);
-
-  // Smooth 1-second countdown ticker (synced with server updates)
-  useEffect(() => {
-    if (isStep4Active || isGameOver) return;
-
-    const timer = setInterval(() => {
-      setStep3Countdown(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setIsStep4Active(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [isStep4Active, isGameOver]);
 
   // Default fallback card (Card No. 72)
   const defaultCard72 = {

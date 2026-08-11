@@ -283,25 +283,18 @@ export class RoomManager {
     }
 
     const updateRoundClock = () => {
-      const timing = this.getGlobalRoundTiming();
-      
-      // If round changed while match was playing, reset room for next round
-      if (room.currentRoundIndex && room.currentRoundIndex !== timing.roundIndex && room.status === 'PLAYING') {
-        room.status = 'COUNTDOWN';
-        room.calledBalls = [];
-        room.remainingBalls = Array.from({ length: 75 }, (_, i) => i + 1);
-        room.currentBall = null;
-        room.winner = null;
-        room.cardPurchases.clear();
-        room.players.clear();
+      // If match is currently PLAYING or FINISHED, do NOT interrupt or reset to COUNTDOWN!
+      if (room.status === 'PLAYING' || room.status === 'FINISHED') {
+        return;
       }
 
+      const timing = this.getGlobalRoundTiming();
       room.currentRoundIndex = timing.roundIndex;
       room.countdownSeconds = timing.countdownSeconds;
 
-      if (room.countdownSeconds <= 0 && room.status !== 'PLAYING') {
+      if (room.countdownSeconds <= 0) {
         this.startMatch(roomId);
-      } else if (room.status !== 'PLAYING') {
+      } else {
         room.status = 'COUNTDOWN';
         this.broadcastRoomUpdate(roomId);
       }
@@ -437,9 +430,10 @@ export class RoomManager {
     room.currentBall = null;
     room.winner = null;
 
-    room.status = 'WAITING_FOR_PLAYERS';
+    room.status = 'COUNTDOWN';
     room.countdownSeconds = 45;
     this.broadcastRoomUpdate(roomId);
+    this.startCountdown(roomId);
   }
 
   broadcastRoomUpdate(roomId) {

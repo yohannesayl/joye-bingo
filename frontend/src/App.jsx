@@ -30,19 +30,21 @@ export default function App() {
   const [playingNoticeModal, setPlayingNoticeModal] = useState(false);
   const [lang, setLang] = useState('en');
 
-  // Initialize & Restore User From Database
+  // Initialize & Restore User Session (sessionStorage FIRST for per-tab isolation!)
   useEffect(() => {
     const tgInfo = getTelegramData();
     setIsTelegram(tgInfo.isTelegram);
 
-    const savedUserStr = localStorage.getItem('karta_user');
+    // Tab-isolated session storage first
+    const savedUserStr = sessionStorage.getItem('joye_user') || localStorage.getItem('karta_user');
     let initialUser = tgInfo.user || (savedUserStr ? JSON.parse(savedUserStr) : null);
 
     if (!initialUser) {
+      const tabUniqueId = `user_${Date.now()}_${Math.floor(100 + Math.random() * 900)}`;
       initialUser = {
-        id: `user_${Math.floor(1000 + Math.random() * 9000)}`,
-        username: `Player_${Math.floor(100 + Math.random() * 900)}`,
-        displayName: `Player #${Math.floor(100 + Math.random() * 900)}`
+        id: tabUniqueId,
+        username: `Player_${tabUniqueId.slice(-4)}`,
+        displayName: `Player #${tabUniqueId.slice(-4)}`
       };
       loginUser(initialUser);
     } else {
@@ -53,6 +55,7 @@ export default function App() {
           if (data && data.balance !== undefined) {
             const updatedUser = { ...initialUser, balance: data.balance };
             setUser(updatedUser);
+            sessionStorage.setItem('joye_user', JSON.stringify(updatedUser));
             localStorage.setItem('karta_user', JSON.stringify(updatedUser));
           } else {
             setUser(initialUser);
@@ -75,6 +78,7 @@ export default function App() {
       const data = await res.json();
       if (data.user) {
         setUser(data.user);
+        sessionStorage.setItem('joye_user', JSON.stringify(data.user));
         localStorage.setItem('karta_user', JSON.stringify(data.user));
       }
     } catch (e) {
@@ -85,6 +89,7 @@ export default function App() {
 
   const handleLoginSuccess = (authenticatedUser) => {
     setUser(authenticatedUser);
+    sessionStorage.setItem('joye_user', JSON.stringify(authenticatedUser));
     localStorage.setItem('karta_user', JSON.stringify(authenticatedUser));
   };
 
@@ -97,6 +102,7 @@ export default function App() {
         if (data && data.balance !== undefined) {
           const updated = { ...user, balance: data.balance };
           setUser(updated);
+          sessionStorage.setItem('joye_user', JSON.stringify(updated));
           localStorage.setItem('karta_user', JSON.stringify(updated));
         }
       } catch (e) {}
@@ -116,6 +122,7 @@ export default function App() {
       if (data.success) {
         const updated = { ...user, balance: data.balance };
         setUser(updated);
+        sessionStorage.setItem('joye_user', JSON.stringify(updated));
         localStorage.setItem('karta_user', JSON.stringify(updated));
         sound.playWinFanfare();
       }
@@ -160,6 +167,7 @@ export default function App() {
       if (res.balance !== undefined) {
         setUser(prev => {
           const updated = { ...prev, balance: res.balance };
+          sessionStorage.setItem('joye_user', JSON.stringify(updated));
           localStorage.setItem('karta_user', JSON.stringify(updated));
           return updated;
         });

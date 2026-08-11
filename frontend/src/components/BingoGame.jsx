@@ -82,7 +82,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   const [liveCalledBalls, setLiveCalledBalls] = useState(room?.calledBalls || []);
   const [liveCurrentBall, setLiveCurrentBall] = useState(room?.currentBall || null);
 
-  const isWaitingForPlayers = (room?.playerCount === undefined || room?.playerCount < 2) && room?.status !== 'COUNTDOWN' && room?.status !== 'PLAYING';
+  const isWaitingForPlayers = false;
 
   // Sync room props updates
   useEffect(() => {

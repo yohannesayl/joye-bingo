@@ -3,6 +3,7 @@ import { Volume2, VolumeX, ArrowLeft, Users, Trophy, Flame, Sparkles, CheckCircl
 import confetti from 'canvas-confetti';
 import { sound } from '../services/soundService';
 import { socketService } from '../services/socketService';
+import { generateBingoCard } from '../services/gameEngine';
 
 // BINGO RULE PATTERN CHECKER (Row, Column, Diagonal, or 4 Corners)
 const checkCardBingoPattern = (matrix, markedSet) => {
@@ -176,18 +177,30 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     ]
   };
 
-  // Sync my purchased cards
+  // Sync my purchased cards with safe resolution
   useEffect(() => {
     if (!room || !user) return;
-    const purchases = (room.purchasedCards || []).filter(cp => cp.userId === user.id);
-    const cards = purchases.map(cp => cp.card);
-    const activeCardsList = cards.length > 0 ? cards : [defaultCard72];
+    const purchases = (room.purchasedCards || []).filter(cp =>
+      cp.userId === user.id || (cp.userName && cp.userName.toLowerCase() === (user.displayName || user.username || '').toLowerCase())
+    );
+
+    const resolvedCards = purchases.map(cp => {
+      if (cp.card && Array.isArray(cp.card.matrix)) return cp.card;
+      if (cp.cardId) return generateBingoCard(cp.cardId);
+      return null;
+    }).filter(Boolean);
+
+    const savedCardIdStr = room?.id ? sessionStorage.getItem(`joye_card_${room.id}`) : null;
+    const savedCardId = savedCardIdStr ? parseInt(savedCardIdStr, 10) : null;
+    const fallbackCard = (savedCardId && !isNaN(savedCardId)) ? generateBingoCard(savedCardId) : defaultCard72;
+
+    const activeCardsList = resolvedCards.length > 0 ? resolvedCards : [fallbackCard];
     setMyCards(activeCardsList);
 
     setDaubedMap(prev => {
       const next = { ...prev };
       activeCardsList.forEach(card => {
-        if (!next[card.id]) {
+        if (card && card.id && !next[card.id]) {
           next[card.id] = new Set(['FREE']);
         }
       });
@@ -199,11 +212,12 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   useEffect(() => {
     if (!autoCardSelector || !isStep4Active || isGameOver) return;
 
-    myCards.forEach(card => {
+    (myCards || []).forEach(card => {
+      if (!card || !Array.isArray(card.matrix)) return;
       const cardCalledNumbers = [];
-      card.matrix.forEach(row => {
-        row.forEach(cell => {
-          if (!cell.isFree && liveCalledBalls.includes(cell.number)) {
+      (card.matrix || []).forEach(row => {
+        (row || []).forEach(cell => {
+          if (cell && !cell.isFree && Array.isArray(liveCalledBalls) && liveCalledBalls.includes(cell.number)) {
             cardCalledNumbers.push(cell.number);
           }
         });
@@ -254,11 +268,11 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     socketService.addBotPlayer(room?.id || 'room_10');
   };
 
-  const activeCard = myCards[0] || defaultCard72;
-  const currentMarkedSet = daubedMap[activeCard.id] || new Set(['FREE']);
+  const safeActiveCard = (myCards[0] && Array.isArray(myCards[0].matrix)) ? myCards[0] : defaultCard72;
+  const currentMarkedSet = daubedMap[safeActiveCard.id] || new Set(['FREE']);
 
   // CHECK IF BINGO PATTERN IS MATCHED
-  const matchedBingoPattern = checkCardBingoPattern(activeCard.matrix, currentMarkedSet);
+  const matchedBingoPattern = checkCardBingoPattern(safeActiveCard.matrix, currentMarkedSet);
   const isBingoRuleMatched = Boolean(matchedBingoPattern);
 
   // CLICKING BINGO
@@ -580,7 +594,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
             )}
 
             <h4 className="font-extrabold text-sm text-white">
-              {activeCard.name || `Card No. ${activeCard.id}`}
+              {safeActiveCard?.name || `Card No. ${safeActiveCard?.id || 72}`}
             </h4>
 
             {/* B-I-N-G-O Header */}
@@ -594,9 +608,9 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
 
             {/* 5x5 Matrix */}
             <div className="grid grid-cols-5 gap-1 text-center">
-              {activeCard.matrix.map((row, r) =>
-                row.map((cell, c) => {
-                  const markedSet = daubedMap[activeCard.id] || new Set(['FREE']);
+              {(safeActiveCard?.matrix || []).map((row, r) =>
+                (row || []).map((cell, c) => {
+                  const markedSet = daubedMap[safeActiveCard?.id] || new Set(['FREE']);
                   const isDaubed = markedSet.has(cell.number);
                   const isCalledBySystem = cell.isFree || (isStep4Active && calledSet.has(cell.number));
 
@@ -604,7 +618,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
                     <button
                       key={`${r}-${c}`}
                       disabled={cell.isFree || !isCalledBySystem || isGameOver}
-                      onClick={() => handleToggleDaub(activeCard.id, cell.number)}
+                      onClick={() => handleToggleDaub(safeActiveCard.id, cell.number)}
                       title={isCalledBySystem ? 'Click to mark called number' : 'Wait for system to call this number'}
                       className={`h-8 rounded flex items-center justify-center font-extrabold text-xs border shadow-sm transition-all ${
                         cell.isFree
@@ -626,7 +640,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
             {/* BINGO BUTTON */}
             <button
               disabled={!isBingoRuleMatched || isGameOver || !isStep4Active}
-              onClick={() => handleClaimBingo(activeCard.id)}
+              onClick={() => handleClaimBingo(safeActiveCard.id)}
               title={isBingoRuleMatched ? 'Click to claim Bingo win!' : 'Complete 5 in a row to enable Bingo button'}
               className={`w-full py-2.5 rounded-lg text-xs font-black uppercase tracking-wider shadow-lg transition-all ${
                 isGameOver

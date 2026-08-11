@@ -157,8 +157,8 @@ export class RoomManager {
     room.pot = this.calculateRoomPot(room);
 
     // Start match immediately so system ball calling begins right away!
-    if (room.status === 'WAITING_FOR_PLAYERS') {
-      this.startMatch(roomId);
+    if (activeCount >= 2 && room.status === 'WAITING_FOR_PLAYERS') {
+      this.startCountdown(roomId);
     }
 
     this.broadcastRoomUpdate(roomId);
@@ -189,9 +189,10 @@ export class RoomManager {
     });
 
     room.pot = this.calculateRoomPot(room);
+    const activeCount = this.getPlayerCount(room);
 
-    if (room.status === 'WAITING_FOR_PLAYERS') {
-      this.startMatch(roomId);
+    if (activeCount >= 2 && room.status === 'WAITING_FOR_PLAYERS') {
+      this.startCountdown(roomId);
     }
 
     this.broadcastRoomUpdate(roomId);
@@ -213,6 +214,15 @@ export class RoomManager {
 
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
+
+    if (room.status !== 'PLAYING' && activeCount < 2) {
+      room.status = 'WAITING_FOR_PLAYERS';
+      room.countdownSeconds = 10;
+      if (room.countdownTimer) {
+        clearInterval(room.countdownTimer);
+        room.countdownTimer = null;
+      }
+    }
 
     this.broadcastRoomUpdate(roomId);
   }
@@ -251,8 +261,8 @@ export class RoomManager {
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    if (room.status === 'WAITING_FOR_PLAYERS') {
-      this.startMatch(roomId);
+    if (activeCount >= 2 && room.status === 'WAITING_FOR_PLAYERS') {
+      this.startCountdown(roomId);
     }
 
     this.broadcastRoomUpdate(roomId);

@@ -78,11 +78,11 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
 
   // COUNTDOWN TIMER & PLAYING STATUS STATE
   const [step3Countdown, setStep3Countdown] = useState(room?.countdownSeconds !== undefined ? room.countdownSeconds : 10);
-  const [isStep4Active, setIsStep4Active] = useState(true);
+  const [isStep4Active, setIsStep4Active] = useState(room?.status === 'PLAYING' || (room?.calledBalls && room.calledBalls.length > 0));
   const [liveCalledBalls, setLiveCalledBalls] = useState(room?.calledBalls || []);
   const [liveCurrentBall, setLiveCurrentBall] = useState(room?.currentBall || null);
 
-  const isWaitingForPlayers = false;
+  const isWaitingForPlayers = (room?.playerCount === undefined || room?.playerCount < 2) && room?.status !== 'COUNTDOWN' && room?.status !== 'PLAYING';
 
   // Sync room props updates
   useEffect(() => {
@@ -96,10 +96,16 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     if (room.status === 'FINISHED') {
       setIsGameOver(true);
     }
+    if (room.countdownSeconds !== undefined) {
+      setStep3Countdown(room.countdownSeconds);
+      if (room.countdownSeconds <= 0 && !isWaitingForPlayers) {
+        setIsStep4Active(true);
+      }
+    }
     if (room.calledBalls) setLiveCalledBalls(room.calledBalls);
     if (room.currentBall) setLiveCurrentBall(room.currentBall);
     if (room.winner) setWinnerModal(room.winner);
-  }, [room?.status, room?.calledBalls, room?.currentBall, room?.winner]);
+  }, [room?.status, room?.countdownSeconds, room?.calledBalls, room?.currentBall, room?.winner, isWaitingForPlayers]);
 
   // SOCKET REAL-TIME SYNC: ALL BROWSERS RECEIVE SAME DRAWN BALLS & WINNER BROADCAST!
   useEffect(() => {

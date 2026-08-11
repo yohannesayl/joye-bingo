@@ -29,19 +29,18 @@ export default function App() {
   const [customServerUrl, setCustomServerUrl] = useState(getBackendUrl());
   const [lang, setLang] = useState('en');
 
-  // GLOBAL MASTER WALL-CLOCK SECONDS (100% Identical Seconds Across ALL 3 Pages!)
+  // GLOBAL MASTER SECONDS (Counts down 45 -> 0:00 cleanly and STOPS at 0:00 when match starts!)
   const [globalMasterSeconds, setGlobalMasterSeconds] = useState(45);
 
   useEffect(() => {
-    const updateMasterClock = () => {
-      const nowMs = Date.now();
-      const roundMs = 45 * 1000;
-      const remSeconds = Math.max(0, Math.ceil((roundMs - (nowMs % roundMs)) / 1000));
-      setGlobalMasterSeconds(remSeconds);
-    };
-
-    updateMasterClock();
-    const timer = setInterval(updateMasterClock, 1000);
+    const timer = setInterval(() => {
+      setGlobalMasterSeconds(prev => {
+        if (prev <= 1) {
+          return 0; // Stop cleanly at 0:00!
+        }
+        return prev - 1;
+      });
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -160,6 +159,11 @@ export default function App() {
     socket.on('room_state', (roomDetails) => {
       if (roomDetails.id === currentRoomId || !currentRoomId) {
         setCurrentRoom(roomDetails);
+        if (roomDetails.status === 'COUNTDOWN' && roomDetails.countdownSeconds !== undefined && roomDetails.countdownSeconds > 0) {
+          setGlobalMasterSeconds(roomDetails.countdownSeconds);
+        } else if (roomDetails.status === 'PLAYING') {
+          setGlobalMasterSeconds(0);
+        }
       }
       setRooms(prev => prev.map(r => r.id === roomDetails.id ? { ...r, ...roomDetails } : r));
     });

@@ -273,7 +273,7 @@ export class RoomManager {
     }
 
     room.status = 'COUNTDOWN';
-    room.countdownSeconds = 30;
+    room.countdownSeconds = 5;
     this.broadcastRoomUpdate(roomId);
 
     room.countdownTimer = setInterval(() => {

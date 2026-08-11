@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, LogIn, UserPlus, Phone, Lock, User, Sparkles, AlertCircle } from 'lucide-react';
+import { X, LogIn, UserPlus, Phone, Lock, User, Sparkles, AlertCircle, Globe, Check } from 'lucide-react';
 import { sound } from '../services/soundService';
-import { getBackendUrl } from '../services/config';
+import { getBackendUrl, setBackendUrl } from '../services/config';
 
 export default function AuthModal({ onLoginSuccess, onClose }) {
   const [mode, setMode] = useState('login'); // 'login' or 'register'
@@ -16,9 +16,22 @@ export default function AuthModal({ onLoginSuccess, onClose }) {
   const [regPhone, setRegPhone] = useState('');
   const [regPassword, setRegPassword] = useState('');
 
+  // Render Server URL Config State
+  const [renderUrlInput, setRenderUrlInput] = useState(getBackendUrl());
+  const [showServerInput, setShowServerInput] = useState(false);
+
   // Error & Loading
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleSaveRenderUrl = () => {
+    sound.playClick();
+    if (renderUrlInput) {
+      setBackendUrl(renderUrlInput);
+      setErrorMsg('');
+      setShowServerInput(false);
+    }
+  };
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -38,6 +51,7 @@ export default function AuthModal({ onLoginSuccess, onClose }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ loginInput, password: loginPassword })
       });
+      
       const data = await res.json();
       setIsLoading(false);
 
@@ -51,7 +65,8 @@ export default function AuthModal({ onLoginSuccess, onClose }) {
       onClose();
     } catch (err) {
       setIsLoading(false);
-      setErrorMsg('Server error! Could not connect to backend server. Make sure your Render backend URL is configured.');
+      setShowServerInput(true);
+      setErrorMsg('Cannot connect to Render backend server. Please paste your live Render URL below to connect.');
     }
   };
 
@@ -78,6 +93,7 @@ export default function AuthModal({ onLoginSuccess, onClose }) {
           password: regPassword
         })
       });
+      
       const data = await res.json();
       setIsLoading(false);
 
@@ -91,7 +107,8 @@ export default function AuthModal({ onLoginSuccess, onClose }) {
       onClose();
     } catch (err) {
       setIsLoading(false);
-      setErrorMsg('Server error! Could not connect to backend server. Make sure your Render backend URL is configured.');
+      setShowServerInput(true);
+      setErrorMsg('Cannot connect to Render backend server. Please paste your live Render URL below to connect.');
     }
   };
 
@@ -151,9 +168,37 @@ export default function AuthModal({ onLoginSuccess, onClose }) {
 
         {/* Error Message */}
         {errorMsg && (
-          <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500 text-rose-300 font-bold text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-            <span>{errorMsg}</span>
+          <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500 text-rose-300 font-bold text-xs space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+
+            {/* INTERACTIVE SERVER URL INPUT BOX WHEN CONNECTION FAILS */}
+            {showServerInput && (
+              <div className="pt-2 space-y-2 border-t border-rose-500/40">
+                <label className="text-[11px] font-extrabold text-white flex items-center gap-1">
+                  <Globe className="w-3.5 h-3.5 text-yellow-400" />
+                  Paste Render Backend URL:
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="https://joye-bingo.onrender.com"
+                    value={renderUrlInput}
+                    onChange={(e) => setRenderUrlInput(e.target.value)}
+                    className="flex-1 bg-slate-950 border border-purple-600 text-yellow-400 font-mono text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-yellow-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveRenderUrl}
+                    className="px-3 py-1.5 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black text-xs shadow flex items-center gap-1"
+                  >
+                    <Check className="w-3.5 h-3.5" /> Save
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

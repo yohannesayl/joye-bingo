@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight, Users, Flame, Shield, Sparkles } from 'lucide-react';
 import { sound } from '../services/soundService';
 
-export default function Lobby({ rooms, onJoinRoom, globalMasterSeconds }) {
+export default function Lobby({ rooms, onJoinRoom, globalMasterSeconds, user }) {
   const defaultStakes = [
     { id: 'room_10', stake: 10, bonus: 'T 0 (+100 ETB)' },
     { id: 'room_20', stake: 20, bonus: 'T 0 (+100 ETB)' },
@@ -57,6 +57,10 @@ export default function Lobby({ rooms, onJoinRoom, globalMasterSeconds }) {
             const pot = liveRoom.pot || (stake * 2 * 0.85);
             const playerCount = liveRoom.playerCount || 0;
 
+            const isUserInMatch = (liveRoom.purchasedCards || []).some(cp =>
+              cp.userId === user?.id || (cp.userName && user?.username && cp.userName.toLowerCase() === user.username.toLowerCase())
+            ) || !!sessionStorage.getItem(`joye_card_${id}`);
+
             return (
               <div
                 key={id}
@@ -99,16 +103,36 @@ export default function Lobby({ rooms, onJoinRoom, globalMasterSeconds }) {
 
                 {/* Join Button Column */}
                 <div className="col-span-3 text-right pr-1">
-                  <button
-                    onClick={() => {
-                      sound.playClick();
-                      onJoinRoom(id);
-                    }}
-                    className="ahun-yellow-btn px-4 sm:px-6 py-2 text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-1 mx-auto"
-                  >
-                    <span>Join</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                  {status === 'PLAYING' && !isUserInMatch ? (
+                    <button
+                      disabled
+                      className="bg-slate-800 text-slate-400 border border-slate-700 px-3 py-2 text-xs uppercase font-extrabold rounded-2xl flex items-center justify-center gap-1 mx-auto cursor-not-allowed opacity-80"
+                    >
+                      <span>IN PROGRESS 🔒</span>
+                    </button>
+                  ) : status === 'PLAYING' && isUserInMatch ? (
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        onJoinRoom(id);
+                      }}
+                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2 text-xs uppercase font-black rounded-2xl flex items-center justify-center gap-1 mx-auto shadow-lg animate-pulse"
+                    >
+                      <span>RE-ENTER MATCH</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        onJoinRoom(id);
+                      }}
+                      className="ahun-yellow-btn px-4 sm:px-6 py-2 text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-1 mx-auto"
+                    >
+                      <span>Join</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             );

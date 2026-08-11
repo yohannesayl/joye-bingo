@@ -271,6 +271,7 @@ export default function App() {
             rooms={rooms}
             onJoinRoom={handleJoinRoom}
             globalMasterSeconds={globalMasterSeconds}
+            user={user}
           />
         )}
 

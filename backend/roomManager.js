@@ -38,7 +38,7 @@ export class RoomManager {
         name: cfg.name,
         stake: cfg.stake,
         status: 'WAITING_FOR_PLAYERS', // 'WAITING_FOR_PLAYERS', 'COUNTDOWN', 'PLAYING', 'FINISHED'
-        countdownSeconds: 45,
+        countdownSeconds: 10,
         countdownTimer: null,
         players: new Map(), // playerKey -> { socketId, userId, userName }
         cardPurchases: new Map(), // cardId -> { userId, userName, card }
@@ -220,7 +220,7 @@ export class RoomManager {
 
     if (room.status !== 'PLAYING' && activeCount < 2) {
       room.status = 'WAITING_FOR_PLAYERS';
-      room.countdownSeconds = 45;
+      room.countdownSeconds = 10;
       if (room.countdownTimer) {
         clearInterval(room.countdownTimer);
         room.countdownTimer = null;
@@ -290,7 +290,7 @@ export class RoomManager {
     }
 
     room.status = 'COUNTDOWN';
-    room.countdownSeconds = 45;
+    room.countdownSeconds = 10;
     this.broadcastRoomUpdate(roomId);
 
     room.countdownTimer = setInterval(() => {
@@ -300,7 +300,7 @@ export class RoomManager {
         clearInterval(room.countdownTimer);
         room.countdownTimer = null;
         room.status = 'WAITING_FOR_PLAYERS';
-        room.countdownSeconds = 45;
+        room.countdownSeconds = 10;
         this.broadcastRoomUpdate(roomId);
         return;
       }
@@ -438,7 +438,7 @@ export class RoomManager {
     room.winner = null;
 
     room.status = 'WAITING_FOR_PLAYERS';
-    room.countdownSeconds = 45;
+    room.countdownSeconds = 10;
     this.broadcastRoomUpdate(roomId);
   }
 

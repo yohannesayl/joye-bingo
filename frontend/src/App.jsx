@@ -163,6 +163,8 @@ export default function App() {
           setGlobalMasterSeconds(roomDetails.countdownSeconds);
         } else if (roomDetails.status === 'PLAYING') {
           setGlobalMasterSeconds(0);
+          setShowCardSelector(false);
+          setActiveTab('game');
         }
       }
       setRooms(prev => prev.map(r => r.id === roomDetails.id ? { ...r, ...roomDetails } : r));
@@ -354,13 +356,14 @@ export default function App() {
         </div>
       )}
 
-      {/* STEP 2 CARD GRID SELECTION OVERLAY */}
-      {showCardSelector && (
+      {/* STEP 2 CARD GRID SELECTION OVERLAY (Bypass completely when room is PLAYING!) */}
+      {showCardSelector && safeRoom.status !== 'PLAYING' && (
         <CardSelector
           room={safeRoom}
           user={user}
           onBuyCard={handleBuyCard}
           onClose={() => setShowCardSelector(false)}
+          globalMasterSeconds={globalMasterSeconds}
         />
       )}
 

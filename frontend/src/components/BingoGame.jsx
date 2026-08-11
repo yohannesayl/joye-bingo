@@ -190,7 +190,11 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
       return null;
     }).filter(Boolean);
 
-    const activeCardsList = resolvedCards.length > 0 ? resolvedCards : [defaultCard72];
+    const savedCardIdStr = room?.id ? sessionStorage.getItem(`joye_card_${room.id}`) : null;
+    const savedCardId = savedCardIdStr ? parseInt(savedCardIdStr, 10) : null;
+    const fallbackCard = (savedCardId && !isNaN(savedCardId)) ? generateBingoCard(savedCardId) : defaultCard72;
+
+    const activeCardsList = resolvedCards.length > 0 ? resolvedCards : [fallbackCard];
     setMyCards(activeCardsList);
 
     setDaubedMap(prev => {

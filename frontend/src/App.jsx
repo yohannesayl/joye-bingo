@@ -209,7 +209,10 @@ export default function App() {
 
   const handleBuyCard = (cardId) => {
     if (!currentRoomId) return;
-    socketService.buyCard(currentRoomId, user.id, cardId);
+    if (user?.id) {
+      sessionStorage.setItem(`joye_card_${currentRoomId}`, cardId);
+      socketService.buyCard(currentRoomId, user.id, cardId);
+    }
     setShowCardSelector(false);
     setActiveTab('game');
   };

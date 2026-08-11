@@ -29,12 +29,12 @@ export default function App() {
   const [customServerUrl, setCustomServerUrl] = useState(getBackendUrl());
   const [lang, setLang] = useState('en');
 
-  // Initialize & Restore User Session (sessionStorage FIRST for per-tab isolation!)
+  // Initialize & Restore User Session (Strict sessionStorage per-tab isolation!)
   useEffect(() => {
     const tgInfo = getTelegramData();
     setIsTelegram(tgInfo.isTelegram);
 
-    const savedUserStr = sessionStorage.getItem('joye_user') || localStorage.getItem('karta_user');
+    const savedUserStr = sessionStorage.getItem('joye_user');
     let initialUser = tgInfo.user || (savedUserStr ? JSON.parse(savedUserStr) : null);
 
     if (!initialUser) {
@@ -54,7 +54,6 @@ export default function App() {
             const updatedUser = { ...initialUser, balance: data.balance };
             setUser(updatedUser);
             sessionStorage.setItem('joye_user', JSON.stringify(updatedUser));
-            localStorage.setItem('karta_user', JSON.stringify(updatedUser));
           } else {
             setUser(initialUser);
           }
@@ -77,7 +76,6 @@ export default function App() {
       if (data.user) {
         setUser(data.user);
         sessionStorage.setItem('joye_user', JSON.stringify(data.user));
-        localStorage.setItem('karta_user', JSON.stringify(data.user));
       }
     } catch (e) {
       console.error('Login error:', e);
@@ -88,7 +86,6 @@ export default function App() {
   const handleLoginSuccess = (authenticatedUser) => {
     setUser(authenticatedUser);
     sessionStorage.setItem('joye_user', JSON.stringify(authenticatedUser));
-    localStorage.setItem('karta_user', JSON.stringify(authenticatedUser));
   };
 
   const refreshUser = async () => {

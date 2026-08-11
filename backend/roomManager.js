@@ -74,19 +74,17 @@ export class RoomManager {
     if (!room) return 0;
     const uniquePlayers = new Set();
 
-    for (const p of room.players.values()) {
+    for (const [socketId, p] of room.players.entries()) {
       if (p.userName && p.userName.trim()) {
         uniquePlayers.add(p.userName.trim().toLowerCase());
-      } else if (p.userId) {
-        uniquePlayers.add(p.userId.toString().trim().toLowerCase());
+      } else {
+        uniquePlayers.add(socketId);
       }
     }
 
     for (const cp of room.cardPurchases.values()) {
       if (cp.userName && cp.userName.trim()) {
         uniquePlayers.add(cp.userName.trim().toLowerCase());
-      } else if (cp.userId) {
-        uniquePlayers.add(cp.userId.toString().trim().toLowerCase());
       }
     }
 
@@ -143,11 +141,10 @@ export class RoomManager {
 
     const effectiveUserId = user?.id || `user_${socket.id}`;
     const effectiveUserName = user?.displayName || user?.username || `Player_${socket.id.slice(-4)}`;
-    const playerKey = effectiveUserId || effectiveUserName.toLowerCase();
 
     socket.join(roomId);
 
-    room.players.set(playerKey, {
+    room.players.set(socket.id, {
       socketId: socket.id,
       userId: effectiveUserId,
       userName: effectiveUserName

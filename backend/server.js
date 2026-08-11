@@ -213,6 +213,17 @@ if (fs.existsSync(frontendDistPath)) {
   });
 }
 
+// REST API POLLING FALLBACK FOR ROOM LIST & ROOM DETAILS
+app.get('/api/rooms', (req, res) => {
+  res.json({ success: true, rooms: roomManager.getRoomList() });
+});
+
+app.get('/api/room/:roomId', (req, res) => {
+  const details = roomManager.getRoomDetails(req.params.roomId);
+  if (!details) return res.status(404).json({ error: 'Room not found' });
+  res.json({ success: true, room: details });
+});
+
 // SOCKET.IO REALTIME EVENTS
 io.on('connection', (socket) => {
   console.log(`[Socket] Client connected: ${socket.id}`);

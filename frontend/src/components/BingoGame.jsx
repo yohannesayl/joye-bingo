@@ -161,6 +161,35 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     };
   }, [socket, voiceOn, isGameOver, user?.id]);
 
+  // 1-SECOND HTTP REST POLLING TICKER (100% UNBEATABLE BACKUP SYNC FOR ALL DEVICES!)
+  useEffect(() => {
+    if (!room?.id) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/room/${room.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.room) {
+            const r = data.room;
+            if (r.status === 'PLAYING' || (r.calledBalls && r.calledBalls.length > 0)) {
+              setIsStep4Active(true);
+              setIsGameOver(false);
+            } else {
+              setIsStep4Active(false);
+            }
+            if (r.currentBall) setLiveCurrentBall(r.currentBall);
+            if (r.calledBalls) setLiveCalledBalls(r.calledBalls);
+            if (r.countdownSeconds !== undefined) setStep3Countdown(r.countdownSeconds);
+            if (r.winner) setWinnerModal(r.winner);
+          }
+        }
+      } catch (e) {}
+    }, 1000);
+
+    return () => clearInterval(pollInterval);
+  }, [room?.id]);
+
   // Default fallback card (Card No. 72)
   const defaultCard72 = {
     id: 72,

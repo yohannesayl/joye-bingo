@@ -273,11 +273,17 @@ export class RoomManager {
     }
 
     room.status = 'COUNTDOWN';
-    room.countdownSeconds = 15;
+    if (!room.matchStartTime) {
+      room.matchStartTime = Date.now();
+    }
+
+    room.countdownSeconds = Math.max(0, 30 - Math.floor((Date.now() - room.matchStartTime) / 1000));
     this.broadcastRoomUpdate(roomId);
 
     room.countdownTimer = setInterval(() => {
-      room.countdownSeconds -= 1;
+      if (!room.matchStartTime) room.matchStartTime = Date.now();
+      const elapsed = Math.floor((Date.now() - room.matchStartTime) / 1000);
+      room.countdownSeconds = Math.max(0, 30 - elapsed);
 
       if (room.countdownSeconds <= 0) {
         clearInterval(room.countdownTimer);
@@ -415,8 +421,9 @@ export class RoomManager {
     room.currentBall = null;
     room.winner = null;
 
+    room.matchStartTime = null;
     room.status = 'WAITING_FOR_PLAYERS';
-    room.countdownSeconds = 45;
+    room.countdownSeconds = 30;
     this.broadcastRoomUpdate(roomId);
   }
 

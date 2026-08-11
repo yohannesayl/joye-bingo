@@ -71,7 +71,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   const [daubedMap, setDaubedMap] = useState({});
   const [winnerModal, setWinnerModal] = useState(null);
   const [voiceOn, setVoiceOn] = useState(true);
-  const [voiceLang, setVoiceLang] = useState('am');
+  const [voiceLang, setVoiceLang] = useState('en');
   const [callSpeedMs, setCallSpeedMs] = useState(3000);
   const [audioStarted, setAudioStarted] = useState(false);
   const [isGameOver, setIsGameOver] = useState(room?.status === 'FINISHED');
@@ -82,11 +82,14 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   const [liveCalledBalls, setLiveCalledBalls] = useState(room?.calledBalls || []);
   const [liveCurrentBall, setLiveCurrentBall] = useState(room?.currentBall || null);
 
-  const isWaitingForPlayers = room?.status === 'WAITING_FOR_PLAYERS' || (room?.playerCount !== undefined && room.playerCount < 2);
+  const isWaitingForPlayers = (room?.playerCount === undefined || room?.playerCount < 2) && room?.status !== 'COUNTDOWN' && room?.status !== 'PLAYING';
 
   // Sync room props updates
   useEffect(() => {
     if (!room) return;
+    if (room.status === 'PLAYING' || room.status === 'COUNTDOWN' || (room.calledBalls && room.calledBalls.length > 0)) {
+      setIsGameOver(false);
+    }
     if (room.status === 'PLAYING' || (room.calledBalls && room.calledBalls.length > 0)) {
       setIsStep4Active(true);
     }

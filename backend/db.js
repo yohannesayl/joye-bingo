@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -6,119 +7,212 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DB_FILE = path.join(__dirname, 'data.json');
 
-// Default initial state with real seed users and exact balances
-const defaultData = {
-  users: {
-    'user_1': {
-      id: 'user_1',
-      username: 'Abebe_Bingo',
-      displayName: 'Abebe B.',
-      phone: '0911223344',
-      password: 'password123',
-      balance: 250,
-      referralCode: 'JOYE100',
-      totalWins: 14,
-      totalEarned: 1850,
-      gamesPlayed: 32,
-      status: 'ACTIVE',
-      joinedAt: new Date().toISOString()
-    },
-    'user_2': {
-      id: 'user_2',
-      username: 'Tigist_K',
-      displayName: 'Tigist K.',
-      phone: '0922334455',
-      password: 'password123',
-      balance: 500,
-      referralCode: 'JOYE200',
-      totalWins: 22,
-      totalEarned: 3400,
-      gamesPlayed: 45,
-      status: 'ACTIVE',
-      joinedAt: new Date().toISOString()
-    },
-    'user_3': {
-      id: 'user_3',
-      username: 'Kebede_Master',
-      displayName: 'Kebede M.',
-      phone: '0933445566',
-      password: 'password123',
-      balance: 150,
-      referralCode: 'JOYE300',
-      totalWins: 8,
-      totalEarned: 920,
-      gamesPlayed: 18,
-      status: 'ACTIVE',
-      joinedAt: new Date().toISOString()
-    }
-  },
-  transactions: [],
-  gameHistory: []
-};
+// MongoDB Atlas URI with exact cluster connection string
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://yohannesayalew99_db_user:3QBaURuEDMP2pK9q@cluster0.fqlu2pr.mongodb.net/Joye-bingo?retryWrites=true&w=majority&appName=Cluster0';
 
-class Database {
+let isMongoConnected = false;
+
+// 1. MONGOOSE USER SCHEMA & MODEL WITH FIELDS: username, password, phonenumber, amount
+const userSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true, trim: true },
+  password: { type: String, required: true },
+  phonenumber: { type: String, required: true, unique: true, trim: true },
+  amount: { type: Number, default: 100 }, // Amount player has to play the game!
+  phone: { type: String, default: '' },
+  fullName: { type: String, default: '' },
+  displayName: { type: String, default: '' },
+  totalWins: { type: Number, default: 0 },
+  totalEarned: { type: Number, default: 0 },
+  gamesPlayed: { type: Number, default: 0 },
+  status: { type: String, default: 'ACTIVE' },
+  joinedAt: { type: Date, default: Date.now }
+}, { collection: 'users' });
+
+const transactionSchema = new mongoose.Schema({
+  userId: { type: String, required: true },
+  type: { type: String, required: true },
+  method: { type: String, default: 'Telebirr' },
+  amount: { type: Number, required: true },
+  reference: { type: String, default: '' },
+  createdAt: { type: Date, default: Date.now }
+}, { collection: 'transactions' });
+
+const gameHistorySchema = new mongoose.Schema({
+  roomId: { type: String, required: true },
+  stake: { type: Number, required: true },
+  winnerName: { type: String, required: true },
+  winnerId: { type: String, required: true },
+  prize: { type: Number, required: true },
+  calledCount: { type: Number, default: 0 },
+  timestamp: { type: Date, default: Date.now }
+}, { collection: 'game_history' });
+
+export const User = mongoose.model('User', userSchema);
+export const Transaction = mongoose.model('Transaction', transactionSchema);
+export const GameHistory = mongoose.model('GameHistory', gameHistorySchema);
+
+class DatabaseService {
   constructor() {
-    this.data = this.load();
+    this.connectMongo();
+    this.localData = this.loadLocal();
   }
 
-  load() {
+  async connectMongo() {
+    try {
+      console.log('🔄 Connecting to MongoDB Atlas database (Joye-bingo)...');
+      await mongoose.connect(MONGODB_URI, {
+        serverSelectionTimeoutMS: 5000
+      });
+      isMongoConnected = true;
+      console.log('✅ Connected successfully to MongoDB Atlas (Joye-bingo database)!');
+    } catch (err) {
+      console.warn('⚠️ MongoDB connection notice (Using fallback database):', err.message);
+      isMongoConnected = false;
+    }
+  }
+
+  loadLocal() {
     try {
       if (fs.existsSync(DB_FILE)) {
-        const fileData = fs.readFileSync(DB_FILE, 'utf-8');
-        return JSON.parse(fileData);
+        return JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
       }
-    } catch (err) {
-      console.error('Error loading DB, using defaults:', err);
-    }
-    return defaultData;
+    } catch (e) {}
+    return { users: {}, transactions: [], gameHistory: [] };
   }
 
-  save() {
+  saveLocal() {
     try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2));
-    } catch (err) {
-      console.error('Error saving DB:', err);
+      fs.writeFileSync(DB_FILE, JSON.stringify(this.localData, null, 2));
+    } catch (e) {}
+  }
+
+  // GET ALL USERS FOR HOST MANAGEMENT DASHBOARD
+  async getAllUsers() {
+    if (isMongoConnected) {
+      try {
+        const users = await User.find({}).lean();
+        return users.map(u => ({
+          ...u,
+          id: u._id.toString(),
+          phone: u.phonenumber || u.phone,
+          balance: u.amount !== undefined ? u.amount : 100
+        }));
+      } catch (e) {}
     }
+
+    return Object.values(this.localData.users).map(u => ({
+      ...u,
+      phonenumber: u.phonenumber || u.phone,
+      amount: u.amount !== undefined ? u.amount : u.balance || 100
+    }));
   }
 
-  getAllUsers() {
-    return Object.values(this.data.users);
-  }
-
-  getUser(userId) {
+  // GET SINGLE USER BY ID
+  async getUser(userId) {
     if (!userId) return null;
-    if (!this.data.users[userId]) {
-      const guestId = userId;
-      this.data.users[guestId] = {
-        id: guestId,
-        username: `Player_${guestId.slice(-4)}`,
-        displayName: `Player #${guestId.slice(-4)}`,
-        phone: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
-        balance: 100, // REAL INITIAL STARTING BALANCE 100 ETB!
-        referralCode: `JOYE${Math.floor(100 + Math.random() * 900)}`,
+
+    if (isMongoConnected) {
+      try {
+        if (mongoose.Types.ObjectId.isValid(userId)) {
+          const user = await User.findById(userId).lean();
+          if (user) {
+            return {
+              ...user,
+              id: user._id.toString(),
+              phone: user.phonenumber || user.phone,
+              balance: user.amount !== undefined ? user.amount : 100
+            };
+          }
+        }
+        const userByUsername = await User.findOne({ username: userId }).lean();
+        if (userByUsername) {
+          return {
+            ...userByUsername,
+            id: userByUsername._id.toString(),
+            phone: userByUsername.phonenumber || userByUsername.phone,
+            balance: userByUsername.amount !== undefined ? userByUsername.amount : 100
+          };
+        }
+      } catch (e) {}
+    }
+
+    if (this.localData.users[userId]) {
+      const u = this.localData.users[userId];
+      return {
+        ...u,
+        phonenumber: u.phonenumber || u.phone,
+        amount: u.amount !== undefined ? u.amount : u.balance || 100,
+        balance: u.amount !== undefined ? u.amount : u.balance || 100
+      };
+    }
+
+    // Guest fallback with 1,000 ETB bonus
+    const guestUser = {
+      id: userId,
+      username: `Player_${userId.slice(-4)}`,
+      displayName: `Player #${userId.slice(-4)}`,
+      phonenumber: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+      phone: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+      password: '123',
+      amount: 1000,
+      balance: 1000,
+      totalWins: 0,
+      totalEarned: 0,
+      gamesPlayed: 0,
+      status: 'ACTIVE',
+      joinedAt: new Date().toISOString()
+    };
+    this.localData.users[userId] = guestUser;
+    this.saveLocal();
+    return guestUser;
+  }
+
+  // REGISTER NEW USER TO MONGO DB (FIELDS: username, password, phonenumber, amount)
+  async registerUser({ fullName, username, phone, password }) {
+    const rawPhone = phone || `09${Math.floor(10000000 + Math.random() * 90000000)}`;
+
+    if (isMongoConnected) {
+      const existingUser = await User.findOne({
+        $or: [
+          { username: new RegExp(`^${username}$`, 'i') },
+          { phonenumber: rawPhone }
+        ]
+      });
+
+      if (existingUser) {
+        if (existingUser.username.toLowerCase() === username.toLowerCase()) {
+          throw new Error('Username is already registered in MongoDB! Please log in.');
+        }
+        throw new Error('Phone number is already registered in MongoDB! Please log in.');
+      }
+
+      const newUser = new User({
+        username,
+        password,
+        phonenumber: rawPhone,
+        phone: rawPhone,
+        fullName: fullName || username,
+        displayName: fullName || username,
+        amount: 100, // Amount player has to play the game!
         totalWins: 0,
         totalEarned: 0,
-        gamesPlayed: 0,
-        status: 'ACTIVE',
-        joinedAt: new Date().toISOString()
+        gamesPlayed: 0
+      });
+
+      await newUser.save();
+      const obj = newUser.toObject();
+      return {
+        ...obj,
+        id: obj._id.toString(),
+        phone: obj.phonenumber,
+        balance: obj.amount
       };
-      this.save();
     }
-    return this.data.users[userId];
-  }
 
-  // SIGN UP / REGISTER NEW PLAYER TO REAL DATABASE
-  registerUser({ fullName, username, phone, password }) {
-    const usersList = Object.values(this.data.users);
-
-    const existingUsername = usersList.find(u => u.username.toLowerCase() === username.toLowerCase());
-    if (existingUsername) {
+    // Fallback JSON DB
+    const usersList = Object.values(this.localData.users);
+    if (usersList.some(u => u.username.toLowerCase() === username.toLowerCase())) {
       throw new Error('Username is already registered! Please choose a different username.');
-    }
-
-    const existingPhone = usersList.find(u => u.phone === phone);
-    if (existingPhone) {
-      throw new Error('Phone number is already registered! Please log in.');
     }
 
     const userId = `user_${Date.now()}`;
@@ -126,106 +220,166 @@ class Database {
       id: userId,
       username,
       displayName: fullName || username,
-      phone,
-      password: password || '123456',
-      balance: 100, // REAL 100 ETB WELCOME BONUS
-      referralCode: `JOYE${Math.floor(1000 + Math.random() * 9000)}`,
-      totalWins: 0,
-      totalEarned: 0,
-      gamesPlayed: 0,
+      phonenumber: rawPhone,
+      phone: rawPhone,
+      password,
+      amount: 100,
+      balance: 100,
       status: 'ACTIVE',
       joinedAt: new Date().toISOString()
     };
-
-    this.data.users[userId] = newUser;
-    this.save();
+    this.localData.users[userId] = newUser;
+    this.saveLocal();
     return newUser;
   }
 
-  // SIGN IN / AUTHENTICATE USER FROM REAL DATABASE
-  authenticateUser({ loginInput, password }) {
-    const usersList = Object.values(this.data.users);
+  // AUTHENTICATE USER FROM MONGO DB (username/phonenumber + password)
+  async authenticateUser({ loginInput, password }) {
+    if (isMongoConnected) {
+      const user = await User.findOne({
+        $or: [
+          { username: new RegExp(`^${loginInput}$`, 'i') },
+          { phonenumber: loginInput },
+          { phone: loginInput }
+        ]
+      });
+
+      if (!user) {
+        throw new Error('User not found in MongoDB! Please check your username or phone number.');
+      }
+
+      if (user.status === 'BLOCKED') {
+        throw new Error('Account suspended by Admin. Please contact support.');
+      }
+
+      if (user.password && password && user.password !== password) {
+        throw new Error('Incorrect password! Please try again.');
+      }
+
+      const obj = user.toObject();
+      return {
+        ...obj,
+        id: obj._id.toString(),
+        phone: obj.phonenumber || obj.phone,
+        balance: obj.amount !== undefined ? obj.amount : 100
+      };
+    }
+
+    // Local JSON DB authentication
+    const usersList = Object.values(this.localData.users);
     const user = usersList.find(u =>
-      (u.username.toLowerCase() === loginInput.toLowerCase() || u.phone === loginInput)
+      (u.username.toLowerCase() === loginInput.toLowerCase() || u.phonenumber === loginInput || u.phone === loginInput)
     );
 
     if (!user) {
-      throw new Error('User not found! Please check your username or phone number.');
-    }
-
-    if (user.status === 'BLOCKED') {
-      throw new Error('Your account has been suspended by Admin. Please contact support.');
+      throw new Error('User not found in database! Please check your username or phone number.');
     }
 
     if (user.password && password && user.password !== password) {
       throw new Error('Incorrect password! Please try again.');
     }
 
-    return user;
-  }
-
-  updateUser(userId, updates) {
-    if (this.data.users[userId]) {
-      this.data.users[userId] = { ...this.data.users[userId], ...updates };
-      this.save();
-    }
-    return this.data.users[userId];
-  }
-
-  updateBalance(userId, delta) {
-    const user = this.getUser(userId);
-    if (user) {
-      user.balance = Math.max(0, user.balance + delta);
-      this.save();
-    }
-    return user?.balance || 0;
-  }
-
-  toggleBlockUser(userId) {
-    const user = this.data.users[userId];
-    if (user) {
-      user.status = user.status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
-      this.save();
-    }
-    return user;
-  }
-
-  addTransaction(tx) {
-    const newTx = {
-      id: `tx_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      status: 'COMPLETED',
-      createdAt: new Date().toISOString(),
-      ...tx
+    return {
+      ...user,
+      phone: user.phonenumber || user.phone,
+      balance: user.amount !== undefined ? user.amount : user.balance || 100
     };
-    this.data.transactions.unshift(newTx);
-    this.save();
-    return newTx;
   }
 
-  addGameHistory(record) {
-    const newRecord = {
-      id: `game_${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      ...record
-    };
-    this.data.gameHistory.unshift(newRecord);
-    this.save();
-    return newRecord;
+  // UPDATE PLAYER AMOUNT IN MONGO DB
+  async updateBalance(userId, delta) {
+    if (isMongoConnected) {
+      try {
+        if (mongoose.Types.ObjectId.isValid(userId)) {
+          const user = await User.findById(userId);
+          if (user) {
+            user.amount = Math.max(0, (user.amount !== undefined ? user.amount : 100) + delta);
+            await user.save();
+            return user.amount;
+          }
+        }
+        const userByUsername = await User.findOne({ username: userId });
+        if (userByUsername) {
+          userByUsername.amount = Math.max(0, (userByUsername.amount !== undefined ? userByUsername.amount : 100) + delta);
+          await userByUsername.save();
+          return userByUsername.amount;
+        }
+      } catch (e) {}
+    }
+
+    const localUser = await this.getUser(userId);
+    if (localUser) {
+      localUser.amount = Math.max(0, (localUser.amount !== undefined ? localUser.amount : localUser.balance || 100) + delta);
+      localUser.balance = localUser.amount;
+      this.saveLocal();
+      return localUser.amount;
+    }
+    return 0;
   }
 
-  getLeaderboard() {
-    return Object.values(this.data.users)
-      .sort((a, b) => (b.totalEarned || 0) - (a.totalEarned || 0))
-      .slice(0, 20);
+  // TOGGLE BLOCK USER IN MONGO DB
+  async toggleBlockUser(userId) {
+    if (isMongoConnected) {
+      try {
+        if (mongoose.Types.ObjectId.isValid(userId)) {
+          const user = await User.findById(userId);
+          if (user) {
+            user.status = user.status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
+            await user.save();
+            const obj = user.toObject();
+            return { ...obj, id: obj._id.toString(), balance: obj.amount };
+          }
+        }
+      } catch (e) {}
+    }
+
+    if (this.localData.users[userId]) {
+      const u = this.localData.users[userId];
+      u.status = u.status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
+      this.saveLocal();
+      return u;
+    }
+    return null;
   }
 
-  getGameHistory() {
-    return this.data.gameHistory.slice(0, 15);
+  async addTransaction(tx) {
+    if (isMongoConnected) {
+      try {
+        const newTx = new Transaction(tx);
+        await newTx.save();
+        return { ...newTx.toObject(), id: newTx._id.toString() };
+      } catch (e) {}
+    }
+    return tx;
   }
 
-  getTransactions(userId) {
-    return this.data.transactions.filter(t => t.userId === userId).slice(0, 20);
+  async getLeaderboard() {
+    if (isMongoConnected) {
+      try {
+        const users = await User.find({}).sort({ totalEarned: -1 }).limit(20).lean();
+        return users.map(u => ({ ...u, id: u._id.toString(), balance: u.amount }));
+      } catch (e) {}
+    }
+    return Object.values(this.localData.users).sort((a, b) => (b.totalEarned || 0) - (a.totalEarned || 0)).slice(0, 20);
+  }
+
+  async getGameHistory() {
+    if (isMongoConnected) {
+      try {
+        return await GameHistory.find({}).sort({ timestamp: -1 }).limit(15).lean();
+      } catch (e) {}
+    }
+    return this.localData.gameHistory || [];
+  }
+
+  async getTransactions(userId) {
+    if (isMongoConnected) {
+      try {
+        return await Transaction.find({ userId }).sort({ createdAt: -1 }).limit(20).lean();
+      } catch (e) {}
+    }
+    return [];
   }
 }
 
-export const db = new Database();
+export const db = new DatabaseService();

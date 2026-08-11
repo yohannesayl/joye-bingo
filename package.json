@@ -6,8 +6,8 @@
   "main": "backend/server.js",
   "scripts": {
     "start": "node backend/server.js",
-    "build": "cd backend && npm install",
-    "postinstall": "cd backend && npm install",
+    "build": "cd frontend && npm install && npm run build && cd ../backend && npm install",
+    "postinstall": "cd frontend && npm install && npm run build && cd ../backend && npm install",
     "dev:backend": "node backend/server.js",
     "dev:frontend": "cd frontend && npm run dev"
   },
@@ -15,6 +15,7 @@
     "concurrently": "^8.2.2",
     "cors": "^2.8.5",
     "express": "^4.19.2",
+    "mongoose": "^8.18.0",
     "socket.io": "^4.7.5"
   }
 }

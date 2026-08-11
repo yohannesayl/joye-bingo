@@ -357,6 +357,14 @@ export class RoomManager {
     room.calledBalls.push(ballNumber);
     room.currentBall = ball;
 
+    // Persist to MongoDB Atlas Joye-bingo room_states table
+    db.updateRoomState(roomId, {
+      status: room.status,
+      calledBalls: room.calledBalls,
+      currentBall: room.currentBall,
+      pot: room.pot
+    });
+
     const ballPayload = {
       roomId,
       ball,

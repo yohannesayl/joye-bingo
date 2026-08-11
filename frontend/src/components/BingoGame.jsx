@@ -82,7 +82,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   const [liveCalledBalls, setLiveCalledBalls] = useState(room?.calledBalls || []);
   const [liveCurrentBall, setLiveCurrentBall] = useState(room?.currentBall || null);
 
-  const isWaitingForPlayers = false;
+  const isWaitingForPlayers = (room?.playerCount === undefined || room?.playerCount < 2) && room?.status !== 'COUNTDOWN' && room?.status !== 'PLAYING';
 
   // Sync room props updates
   useEffect(() => {
@@ -372,8 +372,26 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
         </button>
       </div>
 
+      {/* WAITING FOR PLAYER 2 BANNER */}
+      {isWaitingForPlayers && !isGameOver && (
+        <div className="bg-[#241338]/90 border-2 border-yellow-400 p-4 rounded-3xl text-center space-y-2 shadow-2xl animate-popIn">
+          <div className="flex items-center justify-center gap-2 text-yellow-400 font-extrabold text-xs sm:text-sm">
+            <Users className="w-5 h-5 text-yellow-400 animate-pulse" />
+            <span>WAITING FOR PLAYER 2 TO JOIN MATCH!</span>
+          </div>
+
+          <h3 className="text-base sm:text-lg font-extrabold text-white">
+            Current Joined Players: {room?.playerCount || 1} / 2 Minimum
+          </h3>
+
+          <p className="text-[11px] text-slate-300 max-w-md mx-auto">
+            The 30-second selection countdown will start automatically for ALL players the exact millisecond Player #2 joins!
+          </p>
+        </div>
+      )}
+
       {/* STEP 3 COUNTDOWN BANNER (0:30 -> 0:00) */}
-      {!isStep4Active && !isGameOver && (
+      {!isWaitingForPlayers && !isStep4Active && !isGameOver && (
         <div className="bg-[#241338]/90 border-2 border-yellow-400 p-4 rounded-3xl text-center space-y-2 shadow-2xl animate-popIn">
           <div className="flex items-center justify-center gap-2 text-emerald-400 font-extrabold text-xs sm:text-sm">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />

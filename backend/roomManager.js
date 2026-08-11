@@ -153,7 +153,7 @@ export class RoomManager {
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    if (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer) {
+    if (activeCount >= 2 && (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer)) {
       this.startCountdown(roomId);
     }
 
@@ -185,8 +185,9 @@ export class RoomManager {
     });
 
     room.pot = this.calculateRoomPot(room);
+    const activeCount = this.getPlayerCount(room);
 
-    if (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer) {
+    if (activeCount >= 2 && (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer)) {
       this.startCountdown(roomId);
     }
 
@@ -209,6 +210,15 @@ export class RoomManager {
 
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
+
+    if (room.status !== 'PLAYING' && activeCount < 2) {
+      room.status = 'WAITING_FOR_PLAYERS';
+      room.countdownSeconds = 30;
+      if (room.countdownTimer) {
+        clearInterval(room.countdownTimer);
+        room.countdownTimer = null;
+      }
+    }
 
     this.broadcastRoomUpdate(roomId);
   }
@@ -247,7 +257,7 @@ export class RoomManager {
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    if (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer) {
+    if (activeCount >= 2 && (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer)) {
       this.startCountdown(roomId);
     }
 
@@ -277,6 +287,17 @@ export class RoomManager {
     this.broadcastRoomUpdate(roomId);
 
     room.countdownTimer = setInterval(() => {
+      const activeCount = this.getPlayerCount(room);
+
+      if (activeCount < 2) {
+        clearInterval(room.countdownTimer);
+        room.countdownTimer = null;
+        room.status = 'WAITING_FOR_PLAYERS';
+        room.countdownSeconds = 30;
+        this.broadcastRoomUpdate(roomId);
+        return;
+      }
+
       room.countdownSeconds -= 1;
 
       if (room.countdownSeconds <= 0) {

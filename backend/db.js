@@ -146,7 +146,7 @@ class DatabaseService {
       };
     }
 
-    // Guest fallback
+    // Guest fallback with 1,000 ETB bonus
     const guestUser = {
       id: userId,
       username: `Player_${userId.slice(-4)}`,
@@ -154,8 +154,8 @@ class DatabaseService {
       phonenumber: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
       phone: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
       password: '123',
-      amount: 100,
-      balance: 100,
+      amount: 1000,
+      balance: 1000,
       totalWins: 0,
       totalEarned: 0,
       gamesPlayed: 0,

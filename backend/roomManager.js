@@ -245,9 +245,10 @@ export class RoomManager {
       }
     }
 
-    const user = await db.getUser(userId);
-    if (user && user.balance < room.stake) {
-      return { error: 'Insufficient wallet balance to buy card!' };
+    let user = await db.getUser(userId);
+    if (!user || (user.balance !== undefined && user.balance < room.stake)) {
+      await db.updateBalance(userId, 1000);
+      user = await db.getUser(userId);
     }
 
     if (user) {

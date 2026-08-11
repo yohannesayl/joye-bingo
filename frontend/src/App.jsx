@@ -194,24 +194,22 @@ export default function App() {
     setCurrentRoomId(roomId);
     const targetRoom = currentRoom || rooms.find(r => r.id === roomId);
 
-    if (targetRoom && targetRoom.status === 'PLAYING') {
-      const userHasCard = (targetRoom.purchasedCards || []).some(cp => cp.userId === user?.id);
-      if (!userHasCard) {
-        sound.playClick();
-        setPlayingNoticeModal(true);
-        return;
-      }
+    const userHasCard = (targetRoom?.purchasedCards || []).some(cp =>
+      cp.userId === user?.id || (cp.userName && cp.userName.toLowerCase() === (user?.displayName || user?.username || '').toLowerCase())
+    );
+
+    if (targetRoom && targetRoom.status === 'PLAYING' && !userHasCard) {
+      sound.playClick();
+      setPlayingNoticeModal(true);
+      return;
     }
 
     socketService.joinRoom(roomId, user);
 
-    if (targetRoom && targetRoom.purchasedCards && user?.id) {
-      const userHasCard = targetRoom.purchasedCards.some(cp => cp.userId === user.id);
-      if (userHasCard) {
-        setShowCardSelector(false);
-        setActiveTab('game');
-        return;
-      }
+    if (userHasCard || (targetRoom && targetRoom.status === 'PLAYING')) {
+      setShowCardSelector(false);
+      setActiveTab('game');
+      return;
     }
 
     setShowCardSelector(true);

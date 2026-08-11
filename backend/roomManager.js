@@ -40,7 +40,7 @@ export class RoomManager {
         status: 'WAITING_FOR_PLAYERS', // 'WAITING_FOR_PLAYERS', 'COUNTDOWN', 'PLAYING', 'FINISHED'
         countdownSeconds: 45,
         countdownTimer: null,
-        players: new Map(), // userId/userName -> { socketId, userId, userName }
+        players: new Map(), // playerKey -> { socketId, userId, userName }
         cardPurchases: new Map(), // cardId -> { userId, userName, card }
         calledBalls: [],
         remainingBalls: Array.from({ length: 75 }, (_, i) => i + 1),
@@ -69,12 +69,11 @@ export class RoomManager {
     this.io.emit('lobby_list', this.getRoomList());
   }
 
-  // COUNT UNIQUE JOINED PLAYERS STRICTLY BASED ON DISTINCT USERNAMES / USER IDS!
+  // COUNT UNIQUE PLAYERS STRICTLY BASED ON DISTINCT USERNAMES / USER IDS!
   getPlayerCount(room) {
     if (!room) return 0;
     const uniquePlayers = new Set();
 
-    // 1. Check joined players map
     for (const p of room.players.values()) {
       if (p.userName && p.userName.trim()) {
         uniquePlayers.add(p.userName.trim().toLowerCase());
@@ -83,7 +82,6 @@ export class RoomManager {
       }
     }
 
-    // 2. Check purchased cards map
     for (const cp of room.cardPurchases.values()) {
       if (cp.userName && cp.userName.trim()) {
         uniquePlayers.add(cp.userName.trim().toLowerCase());
@@ -92,7 +90,7 @@ export class RoomManager {
       }
     }
 
-    return uniquePlayers.size;
+    return Math.max(uniquePlayers.size, room.players.size);
   }
 
   calculateRoomPot(room) {
@@ -142,21 +140,26 @@ export class RoomManager {
     let room = this.rooms.get(roomId);
     if (!room) return { error: 'Room not found' };
 
-    if (room.status === 'PLAYING') {
+    const effectiveUserId = user?.id || `user_${socket.id}`;
+    const effectiveUserName = user?.displayName || user?.username || `Player_${socket.id.slice(-4)}`;
+    const playerKey = effectiveUserId || effectiveUserName.toLowerCase();
+
+    // Check if player ALREADY joined or bought a card BEFORE match started
+    const isExistingPlayer = room.players.has(playerKey) || Array.from(room.cardPurchases.values()).some(cp =>
+      cp.userId === effectiveUserId || (cp.userName && cp.userName.toLowerCase() === effectiveUserName.toLowerCase())
+    );
+
+    // BLOCK ONLY NEW PLAYERS WHO DID NOT JOIN BEFORE MATCH STARTED!
+    if (room.status === 'PLAYING' && !isExistingPlayer) {
       return {
         success: false,
-        error: 'Match currently in progress! Please wait for current game to finish before joining next round.',
+        error: 'Match currently in progress! New players cannot join mid-game.',
         room: this.getRoomDetails(roomId)
       };
     }
 
     socket.join(roomId);
 
-    const effectiveUserId = user?.id || `user_${socket.id}`;
-    const effectiveUserName = user?.displayName || user?.username || `Player_${socket.id.slice(-4)}`;
-
-    // Key players map by unique user ID or username so player state persists!
-    const playerKey = effectiveUserId || effectiveUserName.toLowerCase();
     room.players.set(playerKey, {
       socketId: socket.id,
       userId: effectiveUserId,
@@ -166,15 +169,14 @@ export class RoomManager {
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    // START COUNTDOWN INSTANTLY WHEN 2 OR MORE DISTINCT USERNAMES ARE REGISTERED IN THE ROOM!
-    if (activeCount >= 2) {
+    if (room.status !== 'PLAYING' && room.status !== 'FINISHED' && activeCount >= 2) {
       if (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer) {
         this.startCountdown(roomId);
       }
     }
 
     this.broadcastRoomUpdate(roomId);
-    return { success: true, room: this.getRoomDetails(roomId) };
+    return { success: true, isExistingPlayer, room: this.getRoomDetails(roomId) };
   }
 
   addBotToRoom(roomId) {
@@ -219,7 +221,6 @@ export class RoomManager {
 
     socket.leave(roomId);
 
-    // Remove by socketId search
     for (const [key, player] of room.players.entries()) {
       if (player.socketId === socket.id) {
         room.players.delete(key);

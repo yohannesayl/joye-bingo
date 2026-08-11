@@ -261,7 +261,7 @@ export class RoomManager {
   }
 
   getGlobalRoundTiming() {
-    const roundDurationSeconds = 60; // 60-second registration window per round
+    const roundDurationSeconds = 45; // 45-second registration window per round
     const nowMs = Date.now();
     const currentRoundIndex = Math.floor(nowMs / (roundDurationSeconds * 1000));
     const nextRoundStartMs = (currentRoundIndex + 1) * (roundDurationSeconds * 1000);

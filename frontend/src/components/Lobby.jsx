@@ -81,15 +81,11 @@ export default function Lobby({ rooms, onJoinRoom }) {
                 <div className="col-span-3 text-center">
                   {status === 'PLAYING' ? (
                     <span className="text-emerald-400 font-black text-sm uppercase tracking-widest animate-pulse font-mono">
-                      PLAYING
-                    </span>
-                  ) : status === 'COUNTDOWN' ? (
-                    <span className="digital-clock-red text-xl sm:text-2xl font-mono">
-                      0:{seconds < 10 ? '0' : ''}{seconds}
+                      ⚡ PLAYING
                     </span>
                   ) : (
-                    <span className="text-slate-400 font-extrabold text-xs font-mono">
-                      Waiting (Need 2+)
+                    <span className="digital-clock-red text-xl sm:text-2xl font-mono">
+                      0:{seconds < 10 ? '0' : ''}{seconds}
                     </span>
                   )}
                 </div>

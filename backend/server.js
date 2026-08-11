@@ -206,32 +206,47 @@ io.on('connection', (socket) => {
   socket.emit('lobby_list', roomManager.getRoomList());
 
   socket.on('join_room', ({ roomId, user }) => {
-    const res = roomManager.joinRoom(socket, roomId, user);
-    if (res.error) socket.emit('error_msg', res.error);
+    try {
+      const res = roomManager.joinRoom(socket, roomId, user);
+      if (res && res.error) socket.emit('error_msg', res.error);
+    } catch (e) {}
   });
 
   socket.on('leave_room', ({ roomId }) => {
-    roomManager.leaveRoom(socket, roomId);
+    try {
+      roomManager.leaveRoom(socket, roomId);
+    } catch (e) {}
   });
 
-  socket.on('buy_card', ({ roomId, userId, cardId }) => {
-    const res = roomManager.buyCard(socket, roomId, userId, cardId);
-    if (res.error) {
-      socket.emit('error_msg', res.error);
-    } else {
-      socket.emit('card_bought', res);
+  socket.on('buy_card', async ({ roomId, userId, cardId }) => {
+    try {
+      const res = await roomManager.buyCard(socket, roomId, userId, cardId);
+      if (res && res.error) {
+        socket.emit('error_msg', res.error);
+      } else if (res) {
+        socket.emit('card_bought', res);
+      }
+    } catch (err) {
+      console.error('buy_card error:', err);
+      socket.emit('error_msg', err.message || 'Error processing card purchase');
     }
   });
 
-  socket.on('claim_bingo', ({ roomId, userId, cardId }) => {
-    const res = roomManager.claimBingo(socket, roomId, userId, cardId);
-    if (res.error) {
-      socket.emit('error_msg', res.error);
+  socket.on('claim_bingo', async ({ roomId, userId, cardId }) => {
+    try {
+      const res = await roomManager.claimBingo(socket, roomId, userId, cardId);
+      if (res && res.error) {
+        socket.emit('error_msg', res.error);
+      }
+    } catch (err) {
+      console.error('claim_bingo error:', err);
     }
   });
 
   socket.on('add_bot_player', ({ roomId }) => {
-    roomManager.addBotToRoom(roomId);
+    try {
+      roomManager.addBotToRoom(roomId);
+    } catch (e) {}
   });
 
   // Host Controls

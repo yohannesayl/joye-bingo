@@ -40,7 +40,7 @@ export class RoomManager {
         status: 'WAITING_FOR_PLAYERS', // 'WAITING_FOR_PLAYERS', 'COUNTDOWN', 'PLAYING', 'FINISHED'
         countdownSeconds: 45,
         countdownTimer: null,
-        players: new Map(), // socketId -> { userId, userName }
+        players: new Map(), // userId/userName -> { socketId, userId, userName }
         cardPurchases: new Map(), // cardId -> { userId, userName, card }
         calledBalls: [],
         remainingBalls: Array.from({ length: 75 }, (_, i) => i + 1),
@@ -69,12 +69,12 @@ export class RoomManager {
     this.io.emit('lobby_list', this.getRoomList());
   }
 
-  // COUNT UNIQUE PLAYERS STRICTLY BASED ON DISTINCT USERNAMES / USER IDS!
+  // COUNT UNIQUE JOINED PLAYERS STRICTLY BASED ON DISTINCT USERNAMES / USER IDS!
   getPlayerCount(room) {
     if (!room) return 0;
     const uniquePlayers = new Set();
 
-    // 1. Check joined players socket map
+    // 1. Check joined players map
     for (const p of room.players.values()) {
       if (p.userName && p.userName.trim()) {
         uniquePlayers.add(p.userName.trim().toLowerCase());
@@ -83,7 +83,7 @@ export class RoomManager {
       }
     }
 
-    // 2. Check card purchases map
+    // 2. Check purchased cards map
     for (const cp of room.cardPurchases.values()) {
       if (cp.userName && cp.userName.trim()) {
         uniquePlayers.add(cp.userName.trim().toLowerCase());
@@ -92,7 +92,7 @@ export class RoomManager {
       }
     }
 
-    return Math.max(uniquePlayers.size, room.players.size);
+    return uniquePlayers.size;
   }
 
   calculateRoomPot(room) {
@@ -155,7 +155,9 @@ export class RoomManager {
     const effectiveUserId = user?.id || `user_${socket.id}`;
     const effectiveUserName = user?.displayName || user?.username || `Player_${socket.id.slice(-4)}`;
 
-    room.players.set(socket.id, {
+    // Key players map by unique user ID or username so player state persists!
+    const playerKey = effectiveUserId || effectiveUserName.toLowerCase();
+    room.players.set(playerKey, {
       socketId: socket.id,
       userId: effectiveUserId,
       userName: effectiveUserName
@@ -164,17 +166,10 @@ export class RoomManager {
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    // START COUNTDOWN IMMEDIATELY ONCE 2 OR MORE DISTINCT PLAYERS / USERNAMES JOIN!
+    // START COUNTDOWN INSTANTLY WHEN 2 OR MORE DISTINCT USERNAMES ARE REGISTERED IN THE ROOM!
     if (activeCount >= 2) {
       if (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer) {
         this.startCountdown(roomId);
-      }
-    } else {
-      room.status = 'WAITING_FOR_PLAYERS';
-      room.countdownSeconds = 45;
-      if (room.countdownTimer) {
-        clearInterval(room.countdownTimer);
-        room.countdownTimer = null;
       }
     }
 
@@ -186,10 +181,10 @@ export class RoomManager {
     const room = this.rooms.get(roomId);
     if (!room) return;
 
-    const botId = `bot_${Date.now()}`;
+    const botId = `bot_${Date.now()}_${Math.floor(100 + Math.random() * 900)}`;
     const botName = `Bot_Tigist_${Math.floor(100 + Math.random() * 900)}`;
 
-    room.players.set(`socket_${botId}`, {
+    room.players.set(botId, {
       socketId: `socket_${botId}`,
       userId: botId,
       userName: botName
@@ -223,7 +218,14 @@ export class RoomManager {
     if (!room) return;
 
     socket.leave(roomId);
-    room.players.delete(socket.id);
+
+    // Remove by socketId search
+    for (const [key, player] of room.players.entries()) {
+      if (player.socketId === socket.id) {
+        room.players.delete(key);
+        break;
+      }
+    }
 
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);

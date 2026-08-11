@@ -11,7 +11,7 @@ import { getTelegramData } from './services/telegramService';
 import { socketService } from './services/socketService';
 import { sound } from './services/soundService';
 import { getBackendUrl, setBackendUrl } from './services/config';
-import { X, HelpCircle, PhoneCall, Send, AlertTriangle, Globe } from 'lucide-react';
+import { X, HelpCircle, PhoneCall, Send, Globe } from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -27,7 +27,6 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showServerConfigModal, setShowServerConfigModal] = useState(false);
   const [customServerUrl, setCustomServerUrl] = useState(getBackendUrl());
-  const [playingNoticeModal, setPlayingNoticeModal] = useState(false);
   const [lang, setLang] = useState('en');
 
   // Initialize & Restore User Session (sessionStorage FIRST for per-tab isolation!)
@@ -35,7 +34,6 @@ export default function App() {
     const tgInfo = getTelegramData();
     setIsTelegram(tgInfo.isTelegram);
 
-    // Tab-isolated session storage first
     const savedUserStr = sessionStorage.getItem('joye_user') || localStorage.getItem('karta_user');
     let initialUser = tgInfo.user || (savedUserStr ? JSON.parse(savedUserStr) : null);
 
@@ -131,7 +129,6 @@ export default function App() {
     }
   };
 
-  // Save Custom Render Server URL
   const handleSaveServerUrl = () => {
     sound.playClick();
     setBackendUrl(customServerUrl);
@@ -152,14 +149,6 @@ export default function App() {
         setCurrentRoom(roomDetails);
       }
       setRooms(prev => prev.map(r => r.id === roomDetails.id ? { ...r, ...roomDetails } : r));
-
-      if (user?.id && roomDetails.purchasedCards) {
-        const userHasCard = roomDetails.purchasedCards.some(cp => cp.userId === user.id);
-        if (userHasCard && (roomDetails.status === 'COUNTDOWN' || roomDetails.status === 'PLAYING')) {
-          setShowCardSelector(false);
-          setActiveTab('game');
-        }
-      }
     });
 
     socket.on('card_bought', (res) => {
@@ -190,29 +179,23 @@ export default function App() {
     setActiveTab('lobby');
   };
 
+  // ALWAYS ALLOW JOINING DIRECTLY TO THE GAME SCREEN!
   const handleJoinRoom = (roomId) => {
+    sound.playClick();
     setCurrentRoomId(roomId);
     const targetRoom = currentRoom || rooms.find(r => r.id === roomId);
 
-    const userHasCard = (targetRoom?.purchasedCards || []).some(cp =>
-      cp.userId === user?.id || (cp.userName && cp.userName.toLowerCase() === (user?.displayName || user?.username || '').toLowerCase())
-    );
-
-    if (targetRoom && targetRoom.status === 'PLAYING' && !userHasCard) {
-      sound.playClick();
-      setPlayingNoticeModal(true);
-      return;
-    }
-
     socketService.joinRoom(roomId, user);
 
-    if (userHasCard || (targetRoom && targetRoom.status === 'PLAYING')) {
+    if (targetRoom && targetRoom.status === 'PLAYING') {
+      // IF ROOM IS IN PLAYING STATE, ROUTE DIRECTLY TO LIVE GAME MATCH SCREEN!
       setShowCardSelector(false);
       setActiveTab('game');
-      return;
+    } else {
+      // OTHERWISE OPEN CARD SELECTION OVERLAY
+      setShowCardSelector(true);
+      setActiveTab('lobby');
     }
-
-    setShowCardSelector(true);
   };
 
   const handleLeaveRoom = () => {
@@ -276,8 +259,7 @@ export default function App() {
             user={user}
             socket={socketService.getSocket()}
             onOpenCardSelector={() => {
-              const userHasCard = (safeRoom.purchasedCards || []).some(cp => cp.userId === user?.id);
-              if (!userHasCard && safeRoom.status !== 'PLAYING') {
+              if (safeRoom.status !== 'PLAYING') {
                 setShowCardSelector(true);
               }
             }}
@@ -337,35 +319,6 @@ export default function App() {
               className="w-full py-3 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black text-xs uppercase tracking-wider shadow"
             >
               Save Backend URL & Connect
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MID-GAME PLAYING NOTICE MODAL */}
-      {playingNoticeModal && (
-        <div className="fixed inset-0 z-50 bg-[#1e0a2f]/95 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#241338] border-2 border-yellow-400 rounded-3xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl animate-popIn">
-            <div className="w-16 h-16 rounded-full bg-yellow-400 text-slate-950 flex items-center justify-center mx-auto shadow-lg animate-pulse">
-              <AlertTriangle className="w-8 h-8" />
-            </div>
-
-            <h3 className="text-lg font-extrabold text-white">
-              Match Currently In Progress!
-            </h3>
-
-            <p className="text-xs text-slate-300">
-              This stake match is currently in the <strong>PLAYING</strong> step. New players cannot join mid-game. Please wait a few moments for the match to complete, then join the next round!
-            </p>
-
-            <button
-              onClick={() => {
-                sound.playClick();
-                setPlayingNoticeModal(false);
-              }}
-              className="w-full py-3 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black text-xs uppercase tracking-wider shadow"
-            >
-              Understand & Wait For Next Round
             </button>
           </div>
         </div>

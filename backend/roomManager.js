@@ -144,20 +144,6 @@ export class RoomManager {
     const effectiveUserName = user?.displayName || user?.username || `Player_${socket.id.slice(-4)}`;
     const playerKey = effectiveUserId || effectiveUserName.toLowerCase();
 
-    // Check if player ALREADY joined or bought a card BEFORE match started
-    const isExistingPlayer = room.players.has(playerKey) || Array.from(room.cardPurchases.values()).some(cp =>
-      cp.userId === effectiveUserId || (cp.userName && cp.userName.toLowerCase() === effectiveUserName.toLowerCase())
-    );
-
-    // BLOCK ONLY NEW PLAYERS WHO DID NOT JOIN BEFORE MATCH STARTED!
-    if (room.status === 'PLAYING' && !isExistingPlayer) {
-      return {
-        success: false,
-        error: 'Match currently in progress! New players cannot join mid-game.',
-        room: this.getRoomDetails(roomId)
-      };
-    }
-
     socket.join(roomId);
 
     room.players.set(playerKey, {

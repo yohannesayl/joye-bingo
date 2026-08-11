@@ -156,10 +156,9 @@ export class RoomManager {
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    if (activeCount >= 2) {
-      if (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer) {
-        this.startCountdown(roomId);
-      }
+    // Start match immediately so system ball calling begins right away!
+    if (room.status === 'WAITING_FOR_PLAYERS') {
+      this.startMatch(roomId);
     }
 
     this.broadcastRoomUpdate(roomId);
@@ -191,11 +190,8 @@ export class RoomManager {
 
     room.pot = this.calculateRoomPot(room);
 
-    const activeCount = this.getPlayerCount(room);
-    if (activeCount >= 2) {
-      if (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer) {
-        this.startCountdown(roomId);
-      }
+    if (room.status === 'WAITING_FOR_PLAYERS') {
+      this.startMatch(roomId);
     }
 
     this.broadcastRoomUpdate(roomId);
@@ -218,25 +214,12 @@ export class RoomManager {
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    if (room.status !== 'PLAYING' && activeCount < 2) {
-      room.status = 'WAITING_FOR_PLAYERS';
-      room.countdownSeconds = 45;
-      if (room.countdownTimer) {
-        clearInterval(room.countdownTimer);
-        room.countdownTimer = null;
-      }
-    }
-
     this.broadcastRoomUpdate(roomId);
   }
 
   async buyCard(socket, roomId, userId, cardId) {
     let room = this.rooms.get(roomId);
     if (!room) return { error: 'Room not found' };
-
-    if (room.status === 'PLAYING') {
-      return { error: 'Card buying locked during active match!' };
-    }
 
     if (room.cardPurchases.has(cardId)) {
       const buyer = room.cardPurchases.get(cardId);
@@ -268,8 +251,8 @@ export class RoomManager {
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    if (activeCount >= 2 && (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer)) {
-      this.startCountdown(roomId);
+    if (room.status === 'WAITING_FOR_PLAYERS') {
+      this.startMatch(roomId);
     }
 
     this.broadcastRoomUpdate(roomId);

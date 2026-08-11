@@ -385,30 +385,8 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
         </button>
       </div>
 
-      {/* WAITING FOR REAL PLAYERS BANNER */}
-      {isWaitingForPlayers && !isGameOver && (
-        <div className="bg-[#241338]/90 border-2 border-yellow-400 p-5 rounded-3xl text-center space-y-3 shadow-2xl animate-popIn">
-          <div className="flex items-center justify-center gap-2 text-yellow-400 font-black text-sm">
-            <Users className="w-6 h-6 text-yellow-400 animate-pulse" />
-            <span>WAITING FOR MORE PLAYERS TO JOIN MATCH!</span>
-          </div>
-
-          <h3 className="text-lg sm:text-xl font-extrabold text-white">
-            At least 2 players are required to start the match.
-          </h3>
-
-          <div className="inline-block px-4 py-1.5 rounded-full bg-purple-950 border border-yellow-400 text-yellow-400 font-extrabold text-xs font-mono">
-            Current Joined Players: {room?.playerCount || 1} / 2 Minimum
-          </div>
-
-          <p className="text-[11px] text-slate-300 max-w-md mx-auto">
-            Waiting for another real player to join this match! As soon as Player #2 joins, the selection countdown starts automatically for all players.
-          </p>
-        </div>
-      )}
-
-      {/* STEP 3 COUNTDOWN BANNER (0:45 -> 0:00) */}
-      {!isWaitingForPlayers && !isStep4Active && !isGameOver && (
+      {/* STEP 3 COUNTDOWN BANNER (0:30 -> 0:00) */}
+      {!isStep4Active && !isGameOver && (
         <div className="bg-[#241338]/90 border-2 border-yellow-400 p-4 rounded-3xl text-center space-y-2 shadow-2xl animate-popIn">
           <div className="flex items-center justify-center gap-2 text-emerald-400 font-extrabold text-xs sm:text-sm">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />

@@ -153,13 +153,9 @@ export class RoomManager {
       userName: effectiveUserName
     });
 
-    const activeCount = this.getPlayerCount(room);
-    room.pot = this.calculateRoomPot(room);
-
-    if (room.status !== 'PLAYING' && room.status !== 'FINISHED' && activeCount >= 2) {
-      if (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer) {
-        this.startCountdown(roomId);
-      }
+    // Start match immediately so system ball calling begins right away!
+    if (room.status === 'WAITING_FOR_PLAYERS') {
+      this.startMatch(roomId);
     }
 
     this.broadcastRoomUpdate(roomId);
@@ -268,8 +264,8 @@ export class RoomManager {
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    if (activeCount >= 2 && (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer)) {
-      this.startCountdown(roomId);
+    if (room.status === 'WAITING_FOR_PLAYERS') {
+      this.startMatch(roomId);
     }
 
     this.broadcastRoomUpdate(roomId);

@@ -77,12 +77,12 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   const [isGameOver, setIsGameOver] = useState(room?.status === 'FINISHED');
 
   // COUNTDOWN TIMER & PLAYING STATUS STATE
-  const [step3Countdown, setStep3Countdown] = useState(room?.countdownSeconds !== undefined ? room.countdownSeconds : 45);
-  const [isStep4Active, setIsStep4Active] = useState(room?.status === 'PLAYING' || (room?.calledBalls && room.calledBalls.length > 0));
+  const [step3Countdown, setStep3Countdown] = useState(room?.countdownSeconds !== undefined ? room.countdownSeconds : 10);
+  const [isStep4Active, setIsStep4Active] = useState(true);
   const [liveCalledBalls, setLiveCalledBalls] = useState(room?.calledBalls || []);
   const [liveCurrentBall, setLiveCurrentBall] = useState(room?.currentBall || null);
 
-  const isWaitingForPlayers = (room?.playerCount === undefined || room?.playerCount < 2) && room?.status !== 'COUNTDOWN' && room?.status !== 'PLAYING';
+  const isWaitingForPlayers = room?.status === 'WAITING_FOR_PLAYERS' && (room?.playerCount === undefined || room?.playerCount < 1);
 
   // Sync room props updates
   useEffect(() => {

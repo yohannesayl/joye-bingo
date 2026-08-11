@@ -29,7 +29,6 @@ export class RoomManager {
       { id: 'room_100', name: '100birr Match', stake: 100 },
       { id: 'room_150', name: '150birr Match', stake: 150 },
       { id: 'room_200', name: '200birr Match', stake: 200 },
-      { id: 'room_300', name: '300birr Match', stake: 300 }
     ];
 
     roomConfigs.forEach(cfg => {
@@ -37,11 +36,11 @@ export class RoomManager {
         id: cfg.id,
         name: cfg.name,
         stake: cfg.stake,
-        status: 'WAITING_FOR_PLAYERS', // 'WAITING_FOR_PLAYERS', 'COUNTDOWN', 'PLAYING', 'FINISHED'
-        countdownSeconds: 45,
+        status: 'COUNTDOWN',
+        countdownSeconds: 60,
         countdownTimer: null,
-        players: new Map(), // playerKey -> { socketId, userId, userName }
-        cardPurchases: new Map(), // cardId -> { userId, userName, card }
+        players: new Map(),
+        cardPurchases: new Map(),
         calledBalls: [],
         remainingBalls: Array.from({ length: 75 }, (_, i) => i + 1),
         currentBall: null,
@@ -50,6 +49,7 @@ export class RoomManager {
         pot: 0,
         winner: null
       });
+      this.startCountdown(cfg.id);
     });
   }
 
@@ -260,33 +260,55 @@ export class RoomManager {
     };
   }
 
+  getGlobalRoundTiming() {
+    const roundDurationSeconds = 60; // 60-second registration window per round
+    const nowMs = Date.now();
+    const currentRoundIndex = Math.floor(nowMs / (roundDurationSeconds * 1000));
+    const nextRoundStartMs = (currentRoundIndex + 1) * (roundDurationSeconds * 1000);
+    const countdownSeconds = Math.max(0, Math.ceil((nextRoundStartMs - nowMs) / 1000));
+    
+    return {
+      roundIndex: currentRoundIndex,
+      nextRoundStartMs,
+      countdownSeconds
+    };
+  }
+
   startCountdown(roomId) {
     const room = this.rooms.get(roomId);
     if (!room) return;
-
-    if (room.status === 'COUNTDOWN' && room.countdownTimer) {
-      return;
-    }
 
     if (room.countdownTimer) {
       clearInterval(room.countdownTimer);
     }
 
-    room.status = 'COUNTDOWN';
-    room.countdownSeconds = 30;
-    this.broadcastRoomUpdate(roomId);
+    const updateRoundClock = () => {
+      const timing = this.getGlobalRoundTiming();
+      
+      // If round changed while match was playing, reset room for next round
+      if (room.currentRoundIndex && room.currentRoundIndex !== timing.roundIndex && room.status === 'PLAYING') {
+        room.status = 'COUNTDOWN';
+        room.calledBalls = [];
+        room.remainingBalls = Array.from({ length: 75 }, (_, i) => i + 1);
+        room.currentBall = null;
+        room.winner = null;
+        room.cardPurchases.clear();
+        room.players.clear();
+      }
 
-    room.countdownTimer = setInterval(() => {
-      room.countdownSeconds -= 1;
+      room.currentRoundIndex = timing.roundIndex;
+      room.countdownSeconds = timing.countdownSeconds;
 
-      if (room.countdownSeconds <= 0) {
-        clearInterval(room.countdownTimer);
-        room.countdownTimer = null;
+      if (room.countdownSeconds <= 0 && room.status !== 'PLAYING') {
         this.startMatch(roomId);
-      } else {
+      } else if (room.status !== 'PLAYING') {
+        room.status = 'COUNTDOWN';
         this.broadcastRoomUpdate(roomId);
       }
-    }, 1000);
+    };
+
+    updateRoundClock();
+    room.countdownTimer = setInterval(updateRoundClock, 1000);
   }
 
   startMatch(roomId) {

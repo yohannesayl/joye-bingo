@@ -38,7 +38,7 @@ export class RoomManager {
         name: cfg.name,
         stake: cfg.stake,
         status: 'WAITING_FOR_PLAYERS', // 'WAITING_FOR_PLAYERS', 'COUNTDOWN', 'PLAYING', 'FINISHED'
-        countdownSeconds: 60,
+        countdownSeconds: 45,
         countdownTimer: null,
         players: new Map(), // playerKey -> { socketId, userId, userName }
         cardPurchases: new Map(), // cardId -> { userId, userName, card }
@@ -112,41 +112,9 @@ export class RoomManager {
     }));
   }
 
-  syncRoomStateWithTime(room) {
-    if (!room) return;
-    if (room.status === 'PLAYING' && room.gameStartTime && room.ballSequence && room.ballSequence.length > 0) {
-      const elapsedMs = Date.now() - room.gameStartTime;
-      const count = Math.min(75, Math.floor(elapsedMs / 3000) + 1);
-      
-      const numbers = room.ballSequence.slice(0, count);
-      room.calledBalls = numbers;
-
-      if (numbers.length > 0) {
-        const lastNum = numbers[numbers.length - 1];
-        let letter = 'B';
-        if (lastNum >= 16 && lastNum <= 30) letter = 'I';
-        else if (lastNum >= 31 && lastNum <= 45) letter = 'N';
-        else if (lastNum >= 46 && lastNum <= 60) letter = 'G';
-        else if (lastNum >= 61 && lastNum <= 75) letter = 'O';
-
-        const ball = { letter, number: lastNum };
-        if (!room.currentBall || room.currentBall.number !== lastNum) {
-          room.currentBall = ball;
-          this.io.to(room.id).emit('ball_called', {
-            ball,
-            calledBalls: room.calledBalls,
-            roomId: room.id
-          });
-        }
-      }
-    }
-  }
-
   getRoomDetails(roomId) {
     const room = this.rooms.get(roomId);
     if (!room) return null;
-    this.syncRoomStateWithTime(room);
-
     return {
       id: room.id,
       name: room.name,
@@ -305,17 +273,11 @@ export class RoomManager {
     }
 
     room.status = 'COUNTDOWN';
-    if (!room.matchStartTime) {
-      room.matchStartTime = Date.now();
-    }
-
-    room.countdownSeconds = Math.max(0, 60 - Math.floor((Date.now() - room.matchStartTime) / 1000));
+    room.countdownSeconds = 30;
     this.broadcastRoomUpdate(roomId);
 
     room.countdownTimer = setInterval(() => {
-      if (!room.matchStartTime) room.matchStartTime = Date.now();
-      const elapsed = Math.floor((Date.now() - room.matchStartTime) / 1000);
-      room.countdownSeconds = Math.max(0, 60 - elapsed);
+      room.countdownSeconds -= 1;
 
       if (room.countdownSeconds <= 0) {
         clearInterval(room.countdownTimer);
@@ -333,17 +295,13 @@ export class RoomManager {
 
     room.status = 'PLAYING';
     room.calledBalls = [];
+    room.remainingBalls = Array.from({ length: 75 }, (_, i) => i + 1);
+    room.currentBall = null;
     room.winner = null;
 
-    const allNumbers = Array.from({ length: 75 }, (_, i) => i + 1);
-    for (let i = allNumbers.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [allNumbers[i], allNumbers[j]] = [allNumbers[j], allNumbers[i]];
-    }
-    room.ballSequence = allNumbers;
-    room.gameStartTime = Date.now();
+    // Draw first ball immediately so 3D caller displays ball at 0:00!
+    this.drawNextBall(roomId);
 
-    this.syncRoomStateWithTime(room);
     this.broadcastRoomUpdate(roomId);
     this.startAutocall(roomId);
   }
@@ -360,8 +318,10 @@ export class RoomManager {
         return;
       }
 
-      this.syncRoomStateWithTime(room);
-      this.broadcastRoomUpdate(roomId);
+      const ball = this.drawNextBall(roomId);
+      if (!ball) {
+        clearInterval(room.callInterval);
+      }
     }, room.callSpeedMs || 3000);
   }
 
@@ -455,9 +415,8 @@ export class RoomManager {
     room.currentBall = null;
     room.winner = null;
 
-    room.matchStartTime = null;
     room.status = 'WAITING_FOR_PLAYERS';
-    room.countdownSeconds = 60;
+    room.countdownSeconds = 45;
     this.broadcastRoomUpdate(roomId);
   }
 

@@ -213,30 +213,17 @@ if (fs.existsSync(frontendDistPath)) {
   });
 }
 
-// REST API POLLING FALLBACK FOR ROOM LIST & ROOM DETAILS
-app.get('/api/rooms', (req, res) => {
-  res.json({ success: true, rooms: roomManager.getRoomList() });
-});
-
-app.get('/api/room/:roomId', (req, res) => {
-  const details = roomManager.getRoomDetails(req.params.roomId);
-  if (!details) return res.status(404).json({ error: 'Room not found' });
-  res.json({ success: true, room: details });
-});
-
 // SOCKET.IO REALTIME EVENTS
 io.on('connection', (socket) => {
   console.log(`[Socket] Client connected: ${socket.id}`);
 
   socket.emit('lobby_list', roomManager.getRoomList());
 
-  socket.on('join_room', async ({ roomId, user }) => {
+  socket.on('join_room', ({ roomId, user }) => {
     try {
-      const res = await roomManager.joinRoom(socket, roomId, user);
+      const res = roomManager.joinRoom(socket, roomId, user);
       if (res && res.error) socket.emit('error_msg', res.error);
-    } catch (e) {
-      console.error('[Socket Error join_room]', e);
-    }
+    } catch (e) {}
   });
 
   socket.on('leave_room', ({ roomId }) => {
@@ -245,27 +232,19 @@ io.on('connection', (socket) => {
     } catch (e) {}
   });
 
-  socket.on('buy_card', async ({ roomId, userId, cardId }) => {
-    try {
-      const res = await roomManager.buyCard(socket, roomId, userId, cardId);
-      if (res && res.error) {
-        socket.emit('error_msg', res.error);
-      } else {
-        socket.emit('card_bought', res);
-      }
-    } catch (e) {
-      console.error('[Socket Error buy_card]', e);
+  socket.on('buy_card', ({ roomId, userId, cardId }) => {
+    const res = roomManager.buyCard(socket, roomId, userId, cardId);
+    if (res.error) {
+      socket.emit('error_msg', res.error);
+    } else {
+      socket.emit('card_bought', res);
     }
   });
 
-  socket.on('claim_bingo', async ({ roomId, userId, cardId }) => {
-    try {
-      const res = await roomManager.claimBingo(socket, roomId, userId, cardId);
-      if (res && res.error) {
-        socket.emit('error_msg', res.error);
-      }
-    } catch (e) {
-      console.error('[Socket Error claim_bingo]', e);
+  socket.on('claim_bingo', ({ roomId, userId, cardId }) => {
+    const res = roomManager.claimBingo(socket, roomId, userId, cardId);
+    if (res.error) {
+      socket.emit('error_msg', res.error);
     }
   });
 

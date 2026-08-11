@@ -77,7 +77,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   const [isGameOver, setIsGameOver] = useState(room?.status === 'FINISHED');
 
   // COUNTDOWN TIMER & PLAYING STATUS STATE
-  const [step3Countdown, setStep3Countdown] = useState(room?.countdownSeconds !== undefined ? room.countdownSeconds : 60);
+  const [step3Countdown, setStep3Countdown] = useState(room?.countdownSeconds !== undefined ? room.countdownSeconds : 30);
   const [isStep4Active, setIsStep4Active] = useState(room?.status === 'PLAYING' || (room?.calledBalls && room.calledBalls.length > 0));
   const [liveCalledBalls, setLiveCalledBalls] = useState(room?.calledBalls || []);
   const [liveCurrentBall, setLiveCurrentBall] = useState(room?.currentBall || null);
@@ -87,8 +87,10 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   // Sync room props updates
   useEffect(() => {
     if (!room) return;
-    if (room.status === 'PLAYING' || (room.calledBalls && room.calledBalls.length > 0)) {
+    if (room.status === 'PLAYING' || room.status === 'COUNTDOWN' || (room.calledBalls && room.calledBalls.length > 0)) {
       setIsGameOver(false);
+    }
+    if (room.status === 'PLAYING' || (room.calledBalls && room.calledBalls.length > 0)) {
       setIsStep4Active(true);
     }
     if (room.status === 'FINISHED') {
@@ -140,6 +142,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
       }
       if (data.currentBall) setLiveCurrentBall(data.currentBall);
       if (data.calledBalls) setLiveCalledBalls(data.calledBalls);
+      if (data.countdownSeconds !== undefined) setStep3Countdown(data.countdownSeconds);
     };
 
     socket.on('ball_called', handleBallCalled);
@@ -153,34 +156,10 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     };
   }, [socket, voiceOn, isGameOver, user?.id]);
 
-  // 1-SECOND HTTP REST POLLING TICKER (100% UNBEATABLE BACKUP SYNC FOR ALL DEVICES!)
+  // Smooth 1-second countdown ticker (synced with server updates)
   useEffect(() => {
-    if (!room?.id) return;
+    if (isStep4Active || isGameOver) return;
 
-    const pollInterval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/room/${room.id}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.room) {
-            const r = data.room;
-            if (r.status === 'PLAYING' || (r.calledBalls && r.calledBalls.length > 0)) {
-              setIsStep4Active(true);
-              setIsGameOver(false);
-            }
-            if (r.currentBall) setLiveCurrentBall(r.currentBall);
-            if (r.calledBalls) setLiveCalledBalls(r.calledBalls);
-            if (r.winner) setWinnerModal(r.winner);
-          }
-        }
-      } catch (e) {}
-    }, 1000);
-
-    return () => clearInterval(pollInterval);
-  }, [room?.id]);
-
-  // UNINTERRUPTED SMOOTH 1-SECOND VISUAL COUNTDOWN TICKER (60 -> 59 -> 58 -> 57... -> 0:00!)
-  useEffect(() => {
     const timer = setInterval(() => {
       setStep3Countdown(prev => {
         if (prev <= 1) {
@@ -193,13 +172,13 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [isStep4Active, isGameOver]);
 
-  // GUARANTEED AUTOMATIC BALL CALLING TICKER (Draws random BINGO numbers out loud every 3s!)
+  // GUARANTEED AUTOMATIC BALL DRAWING TICKER (Draws random BINGO numbers out loud every 3s!)
   useEffect(() => {
     if (!isStep4Active || isGameOver) return;
 
-    // Draw first ball immediately if liveCurrentBall is missing!
+    // Draw immediate first ball if liveCurrentBall is null!
     if (!liveCurrentBall) {
       const remaining = Array.from({ length: 75 }, (_, i) => i + 1).filter(n => !liveCalledBalls.includes(n));
       if (remaining.length > 0) {
@@ -462,26 +441,8 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
         </button>
       </div>
 
-      {/* WAITING FOR PLAYER 2 BANNER */}
-      {isWaitingForPlayers && !isGameOver && (
-        <div className="bg-[#241338]/90 border-2 border-yellow-400 p-4 rounded-3xl text-center space-y-2 shadow-2xl animate-popIn">
-          <div className="flex items-center justify-center gap-2 text-yellow-400 font-extrabold text-xs sm:text-sm">
-            <Users className="w-5 h-5 text-yellow-400 animate-pulse" />
-            <span>WAITING FOR PLAYER 2 TO JOIN MATCH!</span>
-          </div>
-
-          <h3 className="text-base sm:text-lg font-extrabold text-white">
-            Current Joined Players: {room?.playerCount || 1} / 2 Minimum
-          </h3>
-
-          <p className="text-[11px] text-slate-300 max-w-md mx-auto">
-            The 30-second selection countdown will start automatically for ALL players the exact millisecond Player #2 joins!
-          </p>
-        </div>
-      )}
-
       {/* STEP 3 COUNTDOWN BANNER (0:30 -> 0:00) */}
-      {!isWaitingForPlayers && !isStep4Active && !isGameOver && (
+      {!isStep4Active && !isGameOver && (
         <div className="bg-[#241338]/90 border-2 border-yellow-400 p-4 rounded-3xl text-center space-y-2 shadow-2xl animate-popIn">
           <div className="flex items-center justify-center gap-2 text-emerald-400 font-extrabold text-xs sm:text-sm">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />

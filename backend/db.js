@@ -47,27 +47,9 @@ const gameHistorySchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now }
 }, { collection: 'game_history' });
 
-const roomStateSchema = new mongoose.Schema({
-  roomId: { type: String, required: true, unique: true },
-  name: { type: String, default: '' },
-  stake: { type: Number, default: 10 },
-  status: { type: String, default: 'WAITING_FOR_PLAYERS' },
-  matchStartTime: { type: Number, default: 0 },
-  gameStartTime: { type: Number, default: 0 },
-  ballSequence: { type: [Number], default: [] },
-  calledBalls: { type: [Number], default: [] },
-  currentBall: { type: Object, default: null },
-  purchasedCards: { type: Array, default: [] },
-  players: { type: Array, default: [] },
-  pot: { type: Number, default: 0 },
-  winner: { type: Object, default: null },
-  updatedAt: { type: Date, default: Date.now }
-}, { collection: 'room_states' });
-
 export const User = mongoose.model('User', userSchema);
 export const Transaction = mongoose.model('Transaction', transactionSchema);
 export const GameHistory = mongoose.model('GameHistory', gameHistorySchema);
-export const RoomState = mongoose.model('RoomState', roomStateSchema);
 
 class DatabaseService {
   constructor() {

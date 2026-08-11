@@ -138,12 +138,14 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
         sound.playClick();
       }
 
-      // Exit all players out of the match back to Lobby after 10 seconds!
+      // INSTANT CLEAN EXIT: Clear session storage, reset state, and return to Lobby after 5s without needing page refresh!
       setTimeout(() => {
         if (room?.id) sessionStorage.removeItem(`joye_card_${room.id}`);
         setWinnerModal(null);
+        setIsStep4Active(false);
+        setIsGameOver(false);
         onLeaveRoom();
-      }, 10000);
+      }, 5000);
     };
 
     const handleRoomState = (data) => {

@@ -404,6 +404,13 @@ export class RoomManager {
       pattern
     };
 
+    // Update MongoDB Atlas persistent state
+    db.updateRoomState(room.id, {
+      status: 'FINISHED',
+      winner: room.winner,
+      pot: room.pot
+    });
+
     this.io.to(room.id).emit('bingo_winner', {
       roomId: room.id,
       winner: room.winner
@@ -413,7 +420,7 @@ export class RoomManager {
 
     setTimeout(() => {
       this.resetAndNextMatch(room.id);
-    }, 10000);
+    }, 5000);
   }
 
   resetAndNextMatch(roomId) {

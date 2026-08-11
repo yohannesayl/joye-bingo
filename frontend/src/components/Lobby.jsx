@@ -15,6 +15,15 @@ export default function Lobby({ rooms, onJoinRoom }) {
     { id: 'room_300', stake: 300, bonus: 'T 0 (+100 ETB)' },
   ];
 
+  const [localSeconds, setLocalSeconds] = useState(45);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLocalSeconds(prev => (prev <= 1 ? 45 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Map room data from socket
   const roomMap = {};
   (rooms || []).forEach(r => {
@@ -52,8 +61,8 @@ export default function Lobby({ rooms, onJoinRoom }) {
         <div className="space-y-3">
           {defaultStakes.map(({ id, stake, bonus }) => {
             const liveRoom = roomMap[id] || {};
-            const status = liveRoom.status || 'WAITING_FOR_PLAYERS';
-            const seconds = liveRoom.countdownSeconds !== undefined ? liveRoom.countdownSeconds : 45;
+            const status = liveRoom.status || 'COUNTDOWN';
+            const seconds = (liveRoom.countdownSeconds !== undefined && liveRoom.countdownSeconds > 0) ? liveRoom.countdownSeconds : localSeconds;
             const pot = liveRoom.pot || (stake * 2 * 0.85);
             const playerCount = liveRoom.playerCount || 0;
 

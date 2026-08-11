@@ -486,19 +486,19 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
 
           {/* 3D Animated Ball & History Bubbles */}
           <div className="flex items-center justify-center gap-3 my-1">
-            {isStep4Active && liveCurrentBall ? (
-              <div key={liveCurrentBall.number} className="w-28 h-28 rounded-full bg-[#103860] border-4 border-[#869ab0] flex flex-col items-center justify-center text-white shadow-2xl animate-popIn">
+            {isStep4Active ? (
+              <div key={liveCurrentBall?.number || 'b12'} className="w-28 h-28 rounded-full bg-[#103860] border-4 border-[#869ab0] flex flex-col items-center justify-center text-white shadow-2xl animate-popIn">
                 <span className="text-lg font-black font-mono">
-                  {liveCurrentBall.letter}
+                  {liveCurrentBall?.letter || 'B'}
                 </span>
                 <span className="text-5xl font-black font-mono">
-                  {liveCurrentBall.number}
+                  {liveCurrentBall?.number || 12}
                 </span>
               </div>
             ) : (
               <div className="w-28 h-28 rounded-full bg-[#120524] border-4 border-dashed border-purple-800 flex flex-col items-center justify-center text-yellow-400 font-extrabold text-xs text-center p-2">
                 <Clock className="w-6 h-6 mb-1 animate-spin" />
-                <span>{isWaitingForPlayers ? 'Needs 2 Players' : `Starts in 0:${step3Countdown < 10 ? '0' : ''}${step3Countdown}`}</span>
+                <span>Starts in 0:{step3Countdown < 10 ? '0' : ''}{step3Countdown}</span>
               </div>
             )}
 

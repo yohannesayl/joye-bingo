@@ -131,7 +131,8 @@ export class RoomManager {
       purchasedCards: Array.from(room.cardPurchases.values()).map(cp => ({
         cardId: cp.cardId,
         userId: cp.userId,
-        userName: cp.userName
+        userName: cp.userName,
+        card: cp.card
       }))
     };
   }

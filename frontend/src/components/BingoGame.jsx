@@ -3,6 +3,7 @@ import { Volume2, VolumeX, ArrowLeft, Users, Trophy, Flame, Sparkles, CheckCircl
 import confetti from 'canvas-confetti';
 import { sound } from '../services/soundService';
 import { socketService } from '../services/socketService';
+import { generateBingoCard } from '../services/gameEngine';
 
 // BINGO RULE PATTERN CHECKER (Row, Column, Diagonal, or 4 Corners)
 const checkCardBingoPattern = (matrix, markedSet) => {
@@ -176,18 +177,26 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     ]
   };
 
-  // Sync my purchased cards
+  // Sync my purchased cards with safe resolution
   useEffect(() => {
     if (!room || !user) return;
-    const purchases = (room.purchasedCards || []).filter(cp => cp.userId === user.id);
-    const cards = purchases.map(cp => cp.card);
-    const activeCardsList = cards.length > 0 ? cards : [defaultCard72];
+    const purchases = (room.purchasedCards || []).filter(cp =>
+      cp.userId === user.id || (cp.userName && cp.userName.toLowerCase() === (user.displayName || user.username || '').toLowerCase())
+    );
+
+    const resolvedCards = purchases.map(cp => {
+      if (cp.card && Array.isArray(cp.card.matrix)) return cp.card;
+      if (cp.cardId) return generateBingoCard(cp.cardId);
+      return null;
+    }).filter(Boolean);
+
+    const activeCardsList = resolvedCards.length > 0 ? resolvedCards : [defaultCard72];
     setMyCards(activeCardsList);
 
     setDaubedMap(prev => {
       const next = { ...prev };
       activeCardsList.forEach(card => {
-        if (!next[card.id]) {
+        if (card && card.id && !next[card.id]) {
           next[card.id] = new Set(['FREE']);
         }
       });
@@ -199,11 +208,12 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   useEffect(() => {
     if (!autoCardSelector || !isStep4Active || isGameOver) return;
 
-    myCards.forEach(card => {
+    (myCards || []).forEach(card => {
+      if (!card || !Array.isArray(card.matrix)) return;
       const cardCalledNumbers = [];
-      card.matrix.forEach(row => {
-        row.forEach(cell => {
-          if (!cell.isFree && liveCalledBalls.includes(cell.number)) {
+      (card.matrix || []).forEach(row => {
+        (row || []).forEach(cell => {
+          if (cell && !cell.isFree && Array.isArray(liveCalledBalls) && liveCalledBalls.includes(cell.number)) {
             cardCalledNumbers.push(cell.number);
           }
         });

@@ -69,11 +69,30 @@ export class RoomManager {
     this.io.emit('lobby_list', this.getRoomList());
   }
 
+  // COUNT UNIQUE PLAYERS STRICTLY BASED ON DISTINCT USERNAMES / USER IDS!
   getPlayerCount(room) {
     if (!room) return 0;
-    const playerSockets = room.players.size;
-    const cardsBoughtCount = room.cardPurchases.size;
-    return Math.max(playerSockets, cardsBoughtCount);
+    const uniquePlayers = new Set();
+
+    // 1. Check joined players socket map
+    for (const p of room.players.values()) {
+      if (p.userName && p.userName.trim()) {
+        uniquePlayers.add(p.userName.trim().toLowerCase());
+      } else if (p.userId) {
+        uniquePlayers.add(p.userId.toString().trim().toLowerCase());
+      }
+    }
+
+    // 2. Check card purchases map
+    for (const cp of room.cardPurchases.values()) {
+      if (cp.userName && cp.userName.trim()) {
+        uniquePlayers.add(cp.userName.trim().toLowerCase());
+      } else if (cp.userId) {
+        uniquePlayers.add(cp.userId.toString().trim().toLowerCase());
+      }
+    }
+
+    return Math.max(uniquePlayers.size, room.players.size);
   }
 
   calculateRoomPot(room) {
@@ -133,7 +152,6 @@ export class RoomManager {
 
     socket.join(roomId);
 
-    // Each distinct socket connection counts as a player!
     const effectiveUserId = user?.id || `user_${socket.id}`;
     const effectiveUserName = user?.displayName || user?.username || `Player_${socket.id.slice(-4)}`;
 
@@ -146,7 +164,7 @@ export class RoomManager {
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    // START COUNTDOWN INSTANTLY WHEN 2+ PLAYERS HAVE JOINED!
+    // START COUNTDOWN IMMEDIATELY ONCE 2 OR MORE DISTINCT PLAYERS / USERNAMES JOIN!
     if (activeCount >= 2) {
       if (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer) {
         this.startCountdown(roomId);
@@ -169,7 +187,7 @@ export class RoomManager {
     if (!room) return;
 
     const botId = `bot_${Date.now()}`;
-    const botName = `Bot_Tigist`;
+    const botName = `Bot_Tigist_${Math.floor(100 + Math.random() * 900)}`;
 
     room.players.set(`socket_${botId}`, {
       socketId: `socket_${botId}`,

@@ -391,11 +391,11 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
         </button>
       </div>
 
-      {/* WAITING FOR 2+ PLAYERS BANNER WITH INSTANT ADD BOT PLAYER BUTTON */}
+      {/* WAITING FOR REAL PLAYERS BANNER */}
       {isWaitingForPlayers && !isGameOver && (
         <div className="bg-[#241338]/90 border-2 border-yellow-400 p-5 rounded-3xl text-center space-y-3 shadow-2xl animate-popIn">
           <div className="flex items-center justify-center gap-2 text-yellow-400 font-black text-sm">
-            <UserPlus className="w-6 h-6 text-yellow-400 animate-pulse" />
+            <Users className="w-6 h-6 text-yellow-400 animate-pulse" />
             <span>WAITING FOR MORE PLAYERS TO JOIN MATCH!</span>
           </div>
 
@@ -407,18 +407,8 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
             Current Joined Players: {room?.playerCount || 1} / 2 Minimum
           </div>
 
-          <div className="pt-2">
-            <button
-              onClick={handleAddBot}
-              className="px-6 py-3 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black text-xs uppercase tracking-wider shadow-xl active:scale-95 transition-all inline-flex items-center gap-2"
-            >
-              <Bot className="w-5 h-5 text-slate-950" />
-              <span>🤖 Add Test Bot Player to Start Match Now</span>
-            </button>
-          </div>
-
           <p className="text-[11px] text-slate-300 max-w-md mx-auto">
-            Open another browser window or click the button above to add a test opponent! As soon as Player #2 joins, the selection countdown starts automatically.
+            Waiting for another real player to join this match! As soon as Player #2 joins, the selection countdown starts automatically for all players.
           </p>
         </div>
       )}

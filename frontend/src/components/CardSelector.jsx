@@ -25,16 +25,20 @@ export default function CardSelector({ room, globalMasterSeconds, user, onBuyCar
       .map(cp => cp.cardId || cp.card?.id)
   );
 
-  const secondsLeft = globalMasterSeconds !== undefined ? globalMasterSeconds : (room?.countdownSeconds || 45);
+  const rawSec = globalMasterSeconds !== undefined && globalMasterSeconds !== null ? globalMasterSeconds : (room?.countdownSeconds || 60);
+  const sec = rawSec > 1000 ? Math.ceil(rawSec / 1000) : Math.max(0, Math.floor(rawSec));
+  const displayMins = Math.floor(sec / 60);
+  const displaySecs = sec % 60;
+  const formattedTimer = `${displayMins}:${displaySecs < 10 ? '0' : ''}${displaySecs}`;
 
   // AUTOMATIC TRANSITION AT 0:00
   useEffect(() => {
-    if (secondsLeft <= 0) {
+    if (sec <= 0) {
       const autoCardId = selectedCardId || 72;
       onBuyCard(autoCardId);
       onClose();
     }
-  }, [secondsLeft, selectedCardId, onBuyCard, onClose]);
+  }, [sec, selectedCardId, onBuyCard, onClose]);
 
   const handleSelectCardNumber = (num) => {
     if (takenCardIdsByOthers.has(num)) return; // Cannot select cards taken by others!
@@ -62,13 +66,13 @@ export default function CardSelector({ room, globalMasterSeconds, user, onBuyCar
     <div className="fixed inset-0 z-50 bg-[#1e0a2f]/95 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
       <div className="max-w-5xl w-full my-auto space-y-4">
         
-        {/* Step 2b: Card Preview Screen */}
+        {/* Step 2b: Card Preview & Confirmation Screen */}
         {previewCard ? (
           <div className="max-w-md mx-auto space-y-6 text-center animate-popIn">
             
-            {/* Unified Green Digital Clock */}
-            <div className="digital-clock-green text-4xl font-mono">
-              0:{secondsLeft < 10 ? '0' : ''}{secondsLeft}
+            {/* Red Digital Clock Countdown */}
+            <div className="text-red-500 font-black text-3xl sm:text-4xl font-mono tracking-widest drop-shadow-[0_0_12px_rgba(239,68,68,0.9)]">
+              {formattedTimer}
             </div>
 
             {/* Stake Pill */}
@@ -138,9 +142,9 @@ export default function CardSelector({ room, globalMasterSeconds, user, onBuyCar
           <div className="space-y-4 animate-popIn">
             
             <div className="flex flex-col items-center justify-center space-y-3 text-center">
-              {/* Unified Green Digital Clock */}
-              <div className="digital-clock-green text-4xl font-mono">
-                0:{secondsLeft < 10 ? '0' : ''}{secondsLeft}
+              {/* Red Digital Clock Countdown */}
+              <div className="text-red-500 font-black text-3xl sm:text-4xl font-mono tracking-widest drop-shadow-[0_0_12px_rgba(239,68,68,0.9)]">
+                {formattedTimer}
               </div>
 
               <div className="flex items-center gap-3">

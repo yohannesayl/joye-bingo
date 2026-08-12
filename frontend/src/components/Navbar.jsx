@@ -6,6 +6,7 @@ export default function Navbar({
   user,
   activeTab,
   setActiveTab,
+  globalMasterSeconds,
   onOpenWallet,
   onOpenRules,
   onOpenContact,
@@ -13,21 +14,37 @@ export default function Navbar({
   onRefresh,
   onGoHome
 }) {
+  const rawSec = globalMasterSeconds !== undefined && globalMasterSeconds !== null ? globalMasterSeconds : 60;
+  const sec = rawSec > 1000 ? Math.ceil(rawSec / 1000) : Math.max(0, Math.floor(rawSec));
+  const mins = Math.floor(sec / 60);
+  const secs = sec % 60;
+  const formattedTimer = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+
   return (
     <header className="bg-[#2a1240]/95 backdrop-blur border-b border-purple-900/60 px-4 py-3 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         
-        {/* Brand Logo */}
-        <div 
-          onClick={() => { sound.playClick(); onGoHome(); }}
-          className="flex items-center gap-2 cursor-pointer group"
-        >
-          <div className="w-10 h-10 rounded-full border-2 border-yellow-400 bg-purple-950 flex items-center justify-center text-yellow-400 font-extrabold text-xl shadow-md group-hover:scale-105 transition-transform">
-            🎯
+        {/* Brand Logo & Live Header Digital Clock */}
+        <div className="flex items-center gap-3">
+          <div 
+            onClick={() => { sound.playClick(); onGoHome(); }}
+            className="flex items-center gap-2 cursor-pointer group"
+          >
+            <div className="w-10 h-10 rounded-full border-2 border-yellow-400 bg-purple-950 flex items-center justify-center text-yellow-400 font-extrabold text-xl shadow-md group-hover:scale-105 transition-transform">
+              🎯
+            </div>
+            <div className="flex flex-col">
+              <span className="font-extrabold text-lg tracking-tight text-white flex items-center gap-1">
+                <span className="text-yellow-400 font-black">Joye</span> BINGO
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col">
-            <span className="font-extrabold text-lg tracking-tight text-white flex items-center gap-1">
-              <span className="text-yellow-400 font-black">Joye</span> BINGO
+
+          {/* Header Live Digital Clock Badge */}
+          <div className="px-3 py-1 rounded-xl bg-purple-950/90 border border-purple-700/80 flex items-center gap-1.5 shadow">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">NEXT ROUND</span>
+            <span className="text-red-500 font-black text-sm sm:text-base font-mono tracking-wider drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]">
+              {formattedTimer}
             </span>
           </div>
         </div>

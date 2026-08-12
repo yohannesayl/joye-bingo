@@ -326,6 +326,7 @@ export default function App() {
         user={user}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        globalMasterSeconds={globalMasterSeconds}
         onOpenWallet={() => setShowWallet(true)}
         onOpenRules={() => setShowRules(true)}
         onOpenContact={() => setShowContact(true)}

@@ -38,77 +38,50 @@ export class RoomManager {
   }
 
   async getOrCreateActiveRoom(stakeId = 'room_10', forceReset = false) {
-    // 1. If in-memory room exists and is active, RETURN IT IMMEDIATELY (Prevents Atlas reset loop!)
     let room = this.rooms.get(stakeId);
-    if (!forceReset && room && room.status === 'WAITING' && room.targetEndTime > Date.now()) {
+    const nowMs = Date.now();
+    const globalNextStart = Math.ceil(nowMs / 60000) * 60000;
+
+    if (!forceReset && room && room.status === 'WAITING' && room.targetEndTime > nowMs) {
       return room;
     }
 
-    const now = new Date();
     const stakeNum = parseInt(stakeId.replace('room_', ''), 10) || 10;
-    const LOBBY_DURATION_MS = 60000; // 60 seconds room window
 
-    // 2. Query MongoDB Atlas for active WAITING document whose endTime has NOT passed
-    let roomDoc = await db.getRoomState(stakeId);
-    if (forceReset || !roomDoc || roomDoc.status !== 'WAITING' || !roomDoc.endTime || new Date(roomDoc.endTime) <= now) {
-      // Create/Reset persistent lobby document in MongoDB Atlas with startTime and endTime ISODates
-      const roomId = stakeId;
-      const startTime = now;
-      const endTime = new Date(now.getTime() + LOBBY_DURATION_MS);
-
-      const updated = await db.updateRoomState(roomId, {
-        roomId,
-        stakeId,
-        name: `${stakeNum}birr Match`,
-        stake: stakeNum,
-        status: 'WAITING',
-        startTime,
-        endTime,
-        countdownSeconds: 60,
-        players: [],
-        cardPurchases: [],
-        calledBalls: [],
-        currentBall: null,
-        winner: null,
-        pot: 0
-      });
-      if (updated) roomDoc = updated;
-      console.log(`[MongoDB Atlas Clean Lobby] Reset ${roomId}: WAITING until ${endTime.toISOString()}`);
-    }
-
-    const safeEndTime = (roomDoc && roomDoc.endTime) ? roomDoc.endTime : new Date(now.getTime() + LOBBY_DURATION_MS);
-    const endTimeMs = new Date(safeEndTime).getTime();
-    const remainingMs = Math.max(0, endTimeMs - Date.now());
-    const remainingSeconds = Math.ceil(remainingMs / 1000);
-
-    room = this.rooms.get(stakeId);
-    if (!room) {
+    if (!room || forceReset || room.targetEndTime <= nowMs) {
       room = {
         id: stakeId,
         baseId: stakeId,
         name: `${stakeNum}birr Match`,
         stake: stakeNum,
-        status: (roomDoc && roomDoc.status) || 'WAITING',
-        targetEndTime: endTimeMs,
-        endTime: endTimeMs,
-        countdownSeconds: remainingSeconds,
-        players: new Map(),
+        status: 'WAITING',
+        targetEndTime: globalNextStart,
+        endTime: globalNextStart,
+        countdownSeconds: Math.max(0, Math.ceil((globalNextStart - nowMs) / 1000)),
+        players: room ? room.players : new Map(),
         cardPurchases: new Map(),
-        calledBalls: roomDoc ? (roomDoc.calledBalls || []) : [],
+        calledBalls: [],
         remainingBalls: Array.from({ length: 75 }, (_, i) => i + 1),
-        currentBall: roomDoc ? (roomDoc.currentBall || null) : null,
+        currentBall: null,
         callInterval: null,
         callSpeedMs: 3000,
-        pot: roomDoc ? (roomDoc.pot || 0) : 0,
-        winner: roomDoc ? (roomDoc.winner || null) : null,
+        pot: 0,
+        winner: null,
         timer: null
       };
       this.rooms.set(stakeId, room);
       this.startCountdown(stakeId);
-    } else {
-      if (!room.targetEndTime || room.targetEndTime <= Date.now()) {
-        room.targetEndTime = endTimeMs;
-      }
+
+      // Non-blocking background persistence to MongoDB Atlas
+      db.updateRoomState(stakeId, {
+        roomId: stakeId,
+        stakeId,
+        name: room.name,
+        stake: room.stake,
+        status: 'WAITING',
+        targetEndTime: globalNextStart,
+        endTime: new Date(globalNextStart)
+      }).catch(err => console.error('[DB Sync Error]:', err));
     }
 
     return room;

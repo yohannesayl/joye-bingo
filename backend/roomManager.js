@@ -381,6 +381,10 @@ export class RoomManager {
       // DIRECT DECREMENT: Decrement integer seconds every 1000ms!
       room.countdownSeconds--;
 
+      if (room.id === 'room_10' || room.countdownSeconds % 10 === 0 || room.countdownSeconds <= 10) {
+        console.log(`[SERVER TICK] ${room.id} -> Game starts in: ${room.countdownSeconds}s (Players: ${this.getPlayerCount(room)})`);
+      }
+
       // ZERO CLIENT TIMER PATTERN: Broadcast exact integer second to ALL connected players simultaneously!
       this.io.emit('timer_tick', {
         roomId: room.id,

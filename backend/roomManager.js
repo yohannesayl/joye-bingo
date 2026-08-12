@@ -438,6 +438,16 @@ export class RoomManager {
   startGroupGame(room) {
     if (!room || room.status === 'PLAYING') return;
 
+    // IF 0 CARDS WERE BOUGHT IN THIS ROOM, DO NOT LOCK TO PLAYING!
+    // ROLLOVER targetEndTime TO NEXT MINUTE CLEANLY!
+    if (!room.cardPurchases || room.cardPurchases.size === 0) {
+      const nowMs = Date.now();
+      room.targetEndTime = Math.ceil((nowMs + 1000) / 60000) * 60000;
+      room.status = 'WAITING';
+      this.broadcastRoomUpdate(room.id);
+      return;
+    }
+
     if (room.timer) clearTimeout(room.timer);
     if (room.countdownTimer) clearInterval(room.countdownTimer);
 
@@ -496,6 +506,10 @@ export class RoomManager {
       const ball = this.drawNextBall(roomId);
       if (!ball) {
         clearInterval(room.callInterval);
+        // All 75 balls drawn: Reset room back to WAITING after 5 seconds!
+        setTimeout(() => {
+          this.resetAndNextMatch(roomId);
+        }, 5000);
       }
     }, room.callSpeedMs || 3000);
   }

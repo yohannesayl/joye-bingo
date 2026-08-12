@@ -380,21 +380,26 @@ export class RoomManager {
       const remainingSeconds = Math.ceil(remainingMs / 1000);
       room.countdownSeconds = remainingSeconds;
 
-      // Send fixed targetEndTime AND serverTime timestamp to ALL clients!
+      // ZERO CLIENT TIMER PATTERN: Broadcast exact integer second to ALL connected players simultaneously!
+      this.io.emit('timer_tick', {
+        roomId: room.id,
+        seconds: room.countdownSeconds,
+        timeRemaining: room.countdownSeconds,
+        playerCount: this.getPlayerCount(room)
+      });
+
       this.io.emit('lobby_tick', {
         roomId: room.id,
+        seconds: room.countdownSeconds,
         timeRemaining: room.countdownSeconds,
-        targetEndTime: targetEndTime,
-        serverTime: now,
         playerCount: this.getPlayerCount(room)
       });
 
       this.io.to(room.id).emit('lobby_status', {
         roomId: room.id,
+        seconds: room.countdownSeconds,
         playerCount: this.getPlayerCount(room),
-        timeRemaining: room.countdownSeconds,
-        targetEndTime: targetEndTime,
-        serverTime: now
+        timeRemaining: room.countdownSeconds
       });
 
       if (room.countdownSeconds <= 0) {

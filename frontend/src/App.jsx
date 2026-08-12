@@ -29,28 +29,8 @@ export default function App() {
   const [customServerUrl, setCustomServerUrl] = useState(getBackendUrl());
   const [lang, setLang] = useState('en');
 
-  const [targetTimestamp, setTargetTimestamp] = useState(null);
-  const [serverOffset, setServerOffset] = useState(0);
+  // Zero Client Timer Pattern: Pure passive state receiving integer seconds pushed directly from server!
   const [globalMasterSeconds, setGlobalMasterSeconds] = useState(60);
-
-  // Stable 1-Second Tick Loop (Ticks cleanly once per second: 60s -> 59s -> 58s)
-  useEffect(() => {
-    const updateTimerDisplay = () => {
-      if (targetTimestamp) {
-        const nowCorrected = Date.now() + serverOffset;
-        const diffMs = targetTimestamp - nowCorrected;
-        const secondsRemaining = Math.max(0, Math.floor(diffMs / 1000));
-        setGlobalMasterSeconds(secondsRemaining);
-      } else {
-        setGlobalMasterSeconds(prev => (prev > 0 ? prev - 1 : 0));
-      }
-    };
-
-    updateTimerDisplay();
-    const timerLoopId = setInterval(updateTimerDisplay, 1000);
-
-    return () => clearInterval(timerLoopId);
-  }, [targetTimestamp, serverOffset]);
 
   // Initialize & Restore User Session (Strict sessionStorage per-tab isolation!)
   useEffect(() => {
@@ -164,52 +144,41 @@ export default function App() {
       setRooms(roomList);
       if (Array.isArray(roomList) && roomList.length > 0) {
         const activeTargetRoom = roomList.find(r => r.id === currentRoomId) || roomList[0];
-        if (activeTargetRoom && activeTargetRoom.serverTime) {
-          setServerOffset(prev => (prev === 0 ? activeTargetRoom.serverTime - Date.now() : prev));
+        if (activeTargetRoom && (activeTargetRoom.countdownSeconds !== undefined || activeTargetRoom.seconds !== undefined)) {
+          setGlobalMasterSeconds(activeTargetRoom.seconds !== undefined ? activeTargetRoom.seconds : activeTargetRoom.countdownSeconds);
         }
-        if (activeTargetRoom && activeTargetRoom.targetEndTime) {
-          setTargetTimestamp(activeTargetRoom.targetEndTime);
-        } else if (activeTargetRoom && activeTargetRoom.countdownSeconds !== undefined) {
-          setGlobalMasterSeconds(activeTargetRoom.countdownSeconds);
-        }
+      }
+    });
+
+    socket.on('timer_tick', (data) => {
+      if (data && (data.seconds !== undefined || data.timeRemaining !== undefined)) {
+        setGlobalMasterSeconds(data.seconds !== undefined ? data.seconds : data.timeRemaining);
       }
     });
 
     socket.on('lobby_tick', (data) => {
-      if (data && data.serverTime) {
-        setServerOffset(prev => (prev === 0 ? data.serverTime - Date.now() : prev));
-      }
-      if (data && data.targetEndTime) {
-        setTargetTimestamp(data.targetEndTime);
-      } else if (data && data.timeRemaining !== undefined) {
-        setGlobalMasterSeconds(data.timeRemaining);
+      if (data && (data.seconds !== undefined || data.timeRemaining !== undefined)) {
+        setGlobalMasterSeconds(data.seconds !== undefined ? data.seconds : data.timeRemaining);
       }
     });
 
     socket.on('lobby_status', (data) => {
-      if (data && data.serverTime) {
-        setServerOffset(prev => (prev === 0 ? data.serverTime - Date.now() : prev));
-      }
-      if (data && data.targetEndTime) {
-        setTargetTimestamp(data.targetEndTime);
-      } else if (data && data.timeRemaining !== undefined) {
-        setGlobalMasterSeconds(data.timeRemaining);
+      if (data && (data.seconds !== undefined || data.timeRemaining !== undefined)) {
+        setGlobalMasterSeconds(data.seconds !== undefined ? data.seconds : data.timeRemaining);
       }
     });
 
     socket.on('lobby_reset', (data) => {
-      if (data && data.serverTime) {
-        setServerOffset(prev => (prev === 0 ? data.serverTime - Date.now() : prev));
-      }
-      if (data && data.targetEndTime) {
-        setTargetTimestamp(data.targetEndTime);
-      } else {
-        setGlobalMasterSeconds(60);
-      }
+      setGlobalMasterSeconds(data?.seconds || 60);
     });
 
     socket.on('game_started', () => {
-      setTargetTimestamp(null);
+      setGlobalMasterSeconds(0);
+      setShowCardSelector(false);
+      setActiveTab('game');
+    });
+
+    socket.on('game_start', () => {
       setGlobalMasterSeconds(0);
       setShowCardSelector(false);
       setActiveTab('game');
@@ -218,14 +187,10 @@ export default function App() {
     socket.on('room_state', (roomDetails) => {
       if (roomDetails.id === currentRoomId || !currentRoomId) {
         setCurrentRoom(roomDetails);
-        if (roomDetails.serverTime) {
-          setServerOffset(roomDetails.serverTime - Date.now());
-        }
-        if (roomDetails.targetEndTime) {
-          setTargetTimestamp(roomDetails.targetEndTime);
+        if (roomDetails.countdownSeconds !== undefined || roomDetails.seconds !== undefined) {
+          setGlobalMasterSeconds(roomDetails.seconds !== undefined ? roomDetails.seconds : roomDetails.countdownSeconds);
         }
         if (roomDetails.status === 'PLAYING') {
-          setTargetTimestamp(null);
           setGlobalMasterSeconds(0);
           setShowCardSelector(false);
           setActiveTab('game');

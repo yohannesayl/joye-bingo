@@ -29,8 +29,15 @@ export default function App() {
   const [customServerUrl, setCustomServerUrl] = useState(getBackendUrl());
   const [lang, setLang] = useState('en');
 
-  // Zero Client Timer Pattern: Pure passive state receiving integer seconds pushed directly from server!
   const [globalMasterSeconds, setGlobalMasterSeconds] = useState(60);
+
+  // Smooth 1-Second Countdown Loop (Ticks 60 -> 59 -> 58 smoothly, aligned by server socket events!)
+  useEffect(() => {
+    const timerId = setInterval(() => {
+      setGlobalMasterSeconds(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timerId);
+  }, []);
 
   // Initialize & Restore User Session (Strict sessionStorage per-tab isolation!)
   useEffect(() => {

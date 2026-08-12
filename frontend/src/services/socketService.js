@@ -12,7 +12,7 @@ class SocketService {
       this.socket = io(backendUrl, {
         reconnectionAttempts: 10,
         timeout: 10000,
-        transports: ['websocket']
+        transports: ['polling', 'websocket']
       });
 
       this.socket.on('connect', () => {

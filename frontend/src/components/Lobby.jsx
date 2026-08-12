@@ -114,8 +114,11 @@ export default function Lobby({ rooms, onJoinRoom, globalMasterSeconds, user }) 
                 <div className="col-span-3 text-right pr-1">
                   {status === 'PLAYING' && !isUserInMatch ? (
                     <button
-                      disabled
-                      className="bg-slate-800 text-slate-400 border border-slate-700 px-3 py-2 text-xs uppercase font-extrabold rounded-2xl flex items-center justify-center gap-1 mx-auto cursor-not-allowed opacity-80"
+                      onClick={() => {
+                        sound.playClick();
+                        alert('⚡ The game is currently in progress! Please wait for the next game.');
+                      }}
+                      className="bg-red-950/80 hover:bg-red-900/90 text-red-300 border border-red-700/60 px-3 py-2 text-xs uppercase font-extrabold rounded-2xl flex items-center justify-center gap-1 mx-auto cursor-pointer shadow-md transition-all"
                     >
                       <span>IN PROGRESS 🔒</span>
                     </button>

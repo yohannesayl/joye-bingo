@@ -303,6 +303,10 @@ export class RoomManager {
     let room = await this.getOrCreateActiveRoom(roomId);
     if (!room) return { error: 'Room not found' };
 
+    if (socket && socket.join) {
+      socket.join(room.id);
+    }
+
     if (room.cardPurchases.has(cardId)) {
       const buyer = room.cardPurchases.get(cardId);
       if (buyer.userId !== userId) {
@@ -322,6 +326,14 @@ export class RoomManager {
 
     const card = generateBingoCard(cardId);
     const buyerName = user?.displayName || user?.username || `Player_${socket.id.slice(-4)}`;
+
+    if (socket && socket.id) {
+      room.players.set(socket.id, {
+        socketId: socket.id,
+        userId: userId || socket.id,
+        userName: buyerName
+      });
+    }
 
     room.cardPurchases.set(cardId, {
       cardId,
@@ -602,11 +614,9 @@ export class RoomManager {
       winner: room.winner
     };
 
-    // Broadcast bingo_winner & game_over to ALL connected sockets globally!
+    // Broadcast bingo_winner & game_over STRICTLY to players in THIS room!
     this.io.to(room.id).emit('bingo_winner', winnerPayload);
-    this.io.emit('bingo_winner', winnerPayload);
     this.io.to(room.id).emit('game_over', winnerPayload);
-    this.io.emit('game_over', winnerPayload);
 
     this.broadcastRoomUpdate(room.id);
 
@@ -640,7 +650,6 @@ export class RoomManager {
     const details = this.getRoomDetails(roomId);
     if (details) {
       this.io.to(roomId).emit('room_state', details);
-      this.io.emit('room_state', details);
     }
     this.io.emit('lobby_list', this.getRoomList());
   }

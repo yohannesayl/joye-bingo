@@ -29,20 +29,22 @@ export default function App() {
   const [customServerUrl, setCustomServerUrl] = useState(getBackendUrl());
   const [lang, setLang] = useState('en');
 
-  // GLOBAL MASTER SECONDS (Counts down 45 -> 0:00 cleanly and STOPS at 0:00 when match starts!)
-  const [globalMasterSeconds, setGlobalMasterSeconds] = useState(45);
+  const [targetTimestamp, setTargetTimestamp] = useState(null);
+  const [globalMasterSeconds, setGlobalMasterSeconds] = useState(60);
 
+  // Fixed Wall-Clock Difference Loop (Compares local wall-clock against server's fixed target timestamp)
   useEffect(() => {
-    const timer = setInterval(() => {
-      setGlobalMasterSeconds(prev => {
-        if (prev <= 1) {
-          return 0; // Stop cleanly at 0:00!
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+    if (!targetTimestamp) return;
+
+    const timerLoopId = setInterval(() => {
+      const now = Date.now();
+      const diffMs = targetTimestamp - now;
+      const secondsRemaining = Math.max(0, Math.ceil(diffMs / 1000));
+      setGlobalMasterSeconds(secondsRemaining);
+    }, 200);
+
+    return () => clearInterval(timerLoopId);
+  }, [targetTimestamp]);
 
   // Initialize & Restore User Session (Strict sessionStorage per-tab isolation!)
   useEffect(() => {
@@ -156,29 +158,40 @@ export default function App() {
       setRooms(roomList);
       if (Array.isArray(roomList) && roomList.length > 0) {
         const activeTargetRoom = roomList.find(r => r.id === currentRoomId) || roomList[0];
-        if (activeTargetRoom && activeTargetRoom.countdownSeconds !== undefined && activeTargetRoom.status !== 'PLAYING') {
+        if (activeTargetRoom && activeTargetRoom.targetEndTime) {
+          setTargetTimestamp(activeTargetRoom.targetEndTime);
+        } else if (activeTargetRoom && activeTargetRoom.countdownSeconds !== undefined) {
           setGlobalMasterSeconds(activeTargetRoom.countdownSeconds);
         }
       }
     });
 
     socket.on('lobby_tick', (data) => {
-      if (data && data.timeRemaining !== undefined) {
+      if (data && data.targetEndTime) {
+        setTargetTimestamp(data.targetEndTime);
+      } else if (data && data.timeRemaining !== undefined) {
         setGlobalMasterSeconds(data.timeRemaining);
       }
     });
 
     socket.on('lobby_status', (data) => {
-      if (data.timeRemaining !== undefined) {
+      if (data && data.targetEndTime) {
+        setTargetTimestamp(data.targetEndTime);
+      } else if (data && data.timeRemaining !== undefined) {
         setGlobalMasterSeconds(data.timeRemaining);
       }
     });
 
-    socket.on('lobby_reset', () => {
-      setGlobalMasterSeconds(60);
+    socket.on('lobby_reset', (data) => {
+      if (data && data.targetEndTime) {
+        setTargetTimestamp(data.targetEndTime);
+      } else {
+        setGlobalMasterSeconds(60);
+      }
     });
 
     socket.on('game_started', () => {
+      setTargetTimestamp(null);
       setGlobalMasterSeconds(0);
       setShowCardSelector(false);
       setActiveTab('game');
@@ -187,9 +200,11 @@ export default function App() {
     socket.on('room_state', (roomDetails) => {
       if (roomDetails.id === currentRoomId || !currentRoomId) {
         setCurrentRoom(roomDetails);
-        if (roomDetails.countdownSeconds !== undefined && roomDetails.status !== 'PLAYING') {
-          setGlobalMasterSeconds(roomDetails.countdownSeconds);
-        } else if (roomDetails.status === 'PLAYING') {
+        if (roomDetails.targetEndTime) {
+          setTargetTimestamp(roomDetails.targetEndTime);
+        }
+        if (roomDetails.status === 'PLAYING') {
+          setTargetTimestamp(null);
           setGlobalMasterSeconds(0);
           setShowCardSelector(false);
           setActiveTab('game');

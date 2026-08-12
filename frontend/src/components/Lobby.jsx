@@ -53,9 +53,10 @@ export default function Lobby({ rooms, onJoinRoom, globalMasterSeconds, user }) 
           {defaultStakes.map(({ id, stake, bonus }) => {
             const liveRoom = roomMap[id] || {};
             const status = liveRoom.status || 'COUNTDOWN';
-            const seconds = (globalMasterSeconds !== undefined && globalMasterSeconds !== null)
-              ? globalMasterSeconds
-              : ((liveRoom.countdownSeconds !== undefined) ? liveRoom.countdownSeconds : 60);
+            const targetEnd = liveRoom.targetEndTime;
+            const seconds = targetEnd
+              ? Math.max(0, Math.ceil((targetEnd - Date.now()) / 1000))
+              : (globalMasterSeconds !== undefined && globalMasterSeconds !== null ? globalMasterSeconds : 60);
             const pot = liveRoom.pot || (stake * 2 * 0.85);
             const playerCount = liveRoom.playerCount || 0;
 

@@ -155,7 +155,8 @@ export class RoomManager {
 
   getRoomList() {
     return Array.from(this.rooms.values()).map(r => {
-      const remainingMs = Math.max(0, (r.endTime || Date.now() + 60000) - Date.now());
+      const targetEndTime = r.endTime || (Date.now() + 60000);
+      const remainingMs = Math.max(0, targetEndTime - Date.now());
       const liveCountdownSeconds = Math.ceil(remainingMs / 1000);
       return {
         id: r.id,
@@ -165,7 +166,8 @@ export class RoomManager {
         playerCount: this.getPlayerCount(r),
         cardsSold: r.cardPurchases.size,
         pot: this.calculateRoomPot(r),
-        countdownSeconds: liveCountdownSeconds
+        countdownSeconds: liveCountdownSeconds,
+        targetEndTime: targetEndTime
       };
     });
   }
@@ -173,7 +175,8 @@ export class RoomManager {
   getRoomDetails(roomId) {
     const room = this.rooms.get(roomId);
     if (!room) return null;
-    const remainingMs = Math.max(0, (room.endTime || Date.now() + 60000) - Date.now());
+    const targetEndTime = room.endTime || (Date.now() + 60000);
+    const remainingMs = Math.max(0, targetEndTime - Date.now());
     const liveCountdownSeconds = Math.ceil(remainingMs / 1000);
     return {
       id: room.id,
@@ -182,6 +185,7 @@ export class RoomManager {
       status: room.status,
       playerCount: this.getPlayerCount(room),
       countdownSeconds: liveCountdownSeconds,
+      targetEndTime: targetEndTime,
       calledBalls: room.calledBalls,
       currentBall: room.currentBall,
       pot: this.calculateRoomPot(room),
@@ -213,15 +217,23 @@ export class RoomManager {
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    // Calculate EXACT remaining seconds left on the single shared lobby clock
-    const remainingMs = Math.max(0, (room.endTime || Date.now() + 60000) - Date.now());
+    const targetEndTime = room.endTime || (Date.now() + 60000);
+    const remainingMs = Math.max(0, targetEndTime - Date.now());
     const remainingSeconds = Math.ceil(remainingMs / 1000);
 
-    // Broadcast "lobby_status" to ALL players in this room with updated count and remaining time!
+    // CRITICAL: Send fixed targetEndTime timestamp to ALL players in this room!
     this.io.to(room.id).emit('lobby_status', {
       roomId: room.id,
       playerCount: activeCount,
-      timeRemaining: remainingSeconds
+      timeRemaining: remainingSeconds,
+      targetEndTime: targetEndTime
+    });
+
+    this.io.to(room.id).emit('room_state', {
+      roomId: room.id,
+      targetEndTime: targetEndTime,
+      playerCount: activeCount,
+      status: room.status
     });
 
     this.broadcastRoomUpdate(room.id);
@@ -355,22 +367,24 @@ export class RoomManager {
         return;
       }
 
-      // Calculate EXACT remaining seconds left on the single shared lobby clock
-      const remainingMs = Math.max(0, (room.endTime || Date.now() + 60000) - Date.now());
+      const targetEndTime = room.endTime || (Date.now() + 60000);
+      const remainingMs = Math.max(0, targetEndTime - Date.now());
       const remainingSeconds = Math.ceil(remainingMs / 1000);
       room.countdownSeconds = remainingSeconds;
 
-      // Solution 1: SERVER-PUSHED CLOCK TICK EVERY SECOND TO ALL CONNECTED CLIENTS!
+      // Send fixed targetEndTime timestamp to ALL clients!
       this.io.emit('lobby_tick', {
         roomId: room.id,
         timeRemaining: room.countdownSeconds,
+        targetEndTime: targetEndTime,
         playerCount: this.getPlayerCount(room)
       });
 
       this.io.to(room.id).emit('lobby_status', {
         roomId: room.id,
         playerCount: this.getPlayerCount(room),
-        timeRemaining: room.countdownSeconds
+        timeRemaining: room.countdownSeconds,
+        targetEndTime: targetEndTime
       });
 
       if (room.countdownSeconds <= 0) {

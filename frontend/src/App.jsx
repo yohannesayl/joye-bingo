@@ -156,10 +156,22 @@ export default function App() {
       setRooms(roomList);
     });
 
+    socket.on('lobby_status', (data) => {
+      if (data.timeRemaining !== undefined) {
+        setGlobalMasterSeconds(data.timeRemaining);
+      }
+    });
+
+    socket.on('game_started', () => {
+      setGlobalMasterSeconds(0);
+      setShowCardSelector(false);
+      setActiveTab('game');
+    });
+
     socket.on('room_state', (roomDetails) => {
       if (roomDetails.id === currentRoomId || !currentRoomId) {
         setCurrentRoom(roomDetails);
-        if (roomDetails.status === 'COUNTDOWN' && roomDetails.countdownSeconds !== undefined && roomDetails.countdownSeconds > 0) {
+        if (roomDetails.countdownSeconds !== undefined && roomDetails.status !== 'PLAYING') {
           setGlobalMasterSeconds(roomDetails.countdownSeconds);
         } else if (roomDetails.status === 'PLAYING') {
           setGlobalMasterSeconds(0);

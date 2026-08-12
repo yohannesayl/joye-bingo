@@ -5,6 +5,7 @@ export class RoomManager {
   constructor(io) {
     this.io = io;
     this.rooms = new Map();
+    this.activeLobbies = new Map();
     this.roomPrices = {
       room_10: { stake: 10, commission: 15 },
       room_20: { stake: 20, commission: 15 },
@@ -32,13 +33,27 @@ export class RoomManager {
     ];
 
     roomConfigs.forEach(cfg => {
-      this.rooms.set(cfg.id, {
-        id: cfg.id,
-        name: cfg.name,
-        stake: cfg.stake,
-        status: 'COUNTDOWN',
+      this.getOrCreateActiveRoom(cfg.id);
+    });
+  }
+
+  getOrCreateActiveRoom(stakeId = 'room_10') {
+    let room = this.activeLobbies.get(stakeId);
+
+    // If no room exists, or the current room is already playing, start a brand new room
+    if (!room || room.status !== 'WAITING') {
+      const LOBBY_DURATION_MS = 60000; // 60 seconds room window
+      const endTime = Date.now() + LOBBY_DURATION_MS;
+      const stakeNum = parseInt(stakeId.replace('room_', ''), 10) || 10;
+
+      room = {
+        id: stakeId,
+        baseId: stakeId,
+        name: `${stakeNum}birr Match`,
+        stake: stakeNum,
+        status: 'WAITING',
+        endTime: endTime,
         countdownSeconds: 60,
-        countdownTimer: null,
         players: new Map(),
         cardPurchases: new Map(),
         calledBalls: [],
@@ -47,10 +62,21 @@ export class RoomManager {
         callInterval: null,
         callSpeedMs: 3000,
         pot: 0,
-        winner: null
-      });
-      this.startCountdown(cfg.id);
-    });
+        winner: null,
+        timer: null
+      };
+
+      // Set ONE single timeout for the entire room
+      room.timer = setTimeout(() => {
+        this.startGroupGame(room);
+      }, LOBBY_DURATION_MS);
+
+      this.activeLobbies.set(stakeId, room);
+      this.rooms.set(stakeId, room);
+      this.startCountdown(stakeId);
+    }
+
+    return room;
   }
 
   updateRoomPrices(newPrices) {
@@ -136,13 +162,13 @@ export class RoomManager {
   }
 
   joinRoom(socket, roomId, user) {
-    let room = this.rooms.get(roomId);
+    let room = this.getOrCreateActiveRoom(roomId);
     if (!room) return { error: 'Room not found' };
 
     const effectiveUserId = user?.id || `user_${socket.id}`;
     const effectiveUserName = user?.displayName || user?.username || `Player_${socket.id.slice(-4)}`;
 
-    socket.join(roomId);
+    socket.join(room.id);
 
     room.players.set(socket.id, {
       socketId: socket.id,
@@ -153,12 +179,19 @@ export class RoomManager {
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    if (room.status === 'WAITING_FOR_PLAYERS' || !room.countdownTimer) {
-      this.startCountdown(roomId);
-    }
+    // Calculate EXACT remaining seconds left on the single shared lobby clock
+    const remainingMs = Math.max(0, (room.endTime || Date.now() + 60000) - Date.now());
+    const remainingSeconds = Math.ceil(remainingMs / 1000);
 
-    this.broadcastRoomUpdate(roomId);
-    return { success: true, room: this.getRoomDetails(roomId) };
+    // Broadcast "lobby_status" to ALL players in this room with updated count and remaining time!
+    this.io.to(room.id).emit('lobby_status', {
+      roomId: room.id,
+      playerCount: activeCount,
+      timeRemaining: remainingSeconds
+    });
+
+    this.broadcastRoomUpdate(room.id);
+    return { success: true, room: this.getRoomDetails(room.id) };
   }
 
   addBotToRoom(roomId) {
@@ -288,14 +321,15 @@ export class RoomManager {
         return;
       }
 
-      const timing = this.getGlobalRoundTiming();
-      room.currentRoundIndex = timing.roundIndex;
-      room.countdownSeconds = timing.countdownSeconds;
+      // Calculate EXACT remaining seconds left on the room's single shared clock (room.endTime)
+      const remainingMs = Math.max(0, (room.endTime || Date.now() + 60000) - Date.now());
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
+      room.countdownSeconds = remainingSeconds;
 
       if (room.countdownSeconds <= 0) {
-        this.startMatch(roomId);
+        this.startGroupGame(room);
       } else {
-        room.status = 'COUNTDOWN';
+        room.status = 'WAITING';
         this.broadcastRoomUpdate(roomId);
       }
     };
@@ -304,29 +338,32 @@ export class RoomManager {
     room.countdownTimer = setInterval(updateRoundClock, 1000);
   }
 
-  startMatch(roomId) {
-    const room = this.rooms.get(roomId);
-    if (!room) return;
+  startGroupGame(room) {
+    if (!room || room.status === 'PLAYING') return;
 
+    if (room.timer) clearTimeout(room.timer);
+    if (room.countdownTimer) clearInterval(room.countdownTimer);
+
+    // Lock the room so new players join the NEXT lobby instead!
     room.status = 'PLAYING';
     room.calledBalls = [];
     room.remainingBalls = Array.from({ length: 75 }, (_, i) => i + 1);
     room.currentBall = null;
     room.winner = null;
 
-    // Broadcast "game_started" to ALL clients in the room simultaneously!
-    const details = this.getRoomDetails(roomId);
-    this.io.to(roomId).emit('game_started', {
-      roomId,
-      message: 'Game starting now!',
+    // Notify ALL players in this room at the SAME instant!
+    const details = this.getRoomDetails(room.id);
+    this.io.to(room.id).emit('game_started', {
+      message: 'Lobby locked! Game starting for all players simultaneously.',
+      totalPlayers: this.getPlayerCount(room),
       room: details
     });
 
-    this.broadcastRoomUpdate(roomId);
+    this.broadcastRoomUpdate(room.id);
 
     // Draw first ball immediately so all players see Ball #1 at 0:00!
-    this.drawNextBall(roomId);
-    this.startAutocall(roomId);
+    this.drawNextBall(room.id);
+    this.startAutocall(room.id);
   }
 
   startAutocall(roomId) {

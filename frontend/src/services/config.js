@@ -18,8 +18,8 @@ export const getBackendUrl = () => {
     return 'http://localhost:5000';
   }
 
-  // 4. Default fallback: use window.location.origin (if proxied) or default to localhost
-  return window.location.origin;
+  // 4. Default for production deployment: Connect to Render backend URL
+  return 'https://joye-bingo.onrender.com';
 };
 
 export const setBackendUrl = (url) => {

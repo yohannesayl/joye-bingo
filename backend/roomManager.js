@@ -368,17 +368,18 @@ export class RoomManager {
       clearInterval(room.countdownTimer);
     }
 
+    if (room.countdownSeconds === undefined || room.countdownSeconds <= 0) {
+      room.countdownSeconds = 60;
+    }
+
     const updateRoundClock = () => {
       // If match is currently PLAYING or FINISHED, do NOT interrupt countdown
       if (room.status === 'PLAYING' || room.status === 'FINISHED') {
         return;
       }
 
-      const now = Date.now();
-      const targetEndTime = room.endTime || (now + 60000);
-      const remainingMs = Math.max(0, targetEndTime - now);
-      const remainingSeconds = Math.ceil(remainingMs / 1000);
-      room.countdownSeconds = remainingSeconds;
+      // DIRECT DECREMENT: Decrement integer seconds every 1000ms!
+      room.countdownSeconds--;
 
       // ZERO CLIENT TIMER PATTERN: Broadcast exact integer second to ALL connected players simultaneously!
       this.io.emit('timer_tick', {
@@ -410,7 +411,6 @@ export class RoomManager {
       }
     };
 
-    updateRoundClock();
     room.countdownTimer = setInterval(updateRoundClock, 1000);
   }
 
@@ -569,8 +569,8 @@ export class RoomManager {
     room.currentBall = null;
     room.winner = null;
 
-    room.status = 'COUNTDOWN';
-    room.countdownSeconds = 45;
+    room.status = 'WAITING';
+    room.countdownSeconds = 60;
     this.broadcastRoomUpdate(roomId);
     this.startCountdown(roomId);
   }

@@ -154,6 +154,12 @@ export default function App() {
 
     socket.on('lobby_list', (roomList) => {
       setRooms(roomList);
+      if (Array.isArray(roomList) && roomList.length > 0) {
+        const activeTargetRoom = roomList.find(r => r.id === currentRoomId) || roomList[0];
+        if (activeTargetRoom && activeTargetRoom.countdownSeconds !== undefined && activeTargetRoom.status !== 'PLAYING') {
+          setGlobalMasterSeconds(activeTargetRoom.countdownSeconds);
+        }
+      }
     });
 
     socket.on('lobby_status', (data) => {

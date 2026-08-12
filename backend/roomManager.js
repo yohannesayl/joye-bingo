@@ -154,28 +154,34 @@ export class RoomManager {
   }
 
   getRoomList() {
-    return Array.from(this.rooms.values()).map(r => ({
-      id: r.id,
-      name: r.name,
-      stake: r.stake,
-      status: r.status,
-      playerCount: this.getPlayerCount(r),
-      cardsSold: r.cardPurchases.size,
-      pot: this.calculateRoomPot(r),
-      countdownSeconds: r.countdownSeconds
-    }));
+    return Array.from(this.rooms.values()).map(r => {
+      const remainingMs = Math.max(0, (r.endTime || Date.now() + 60000) - Date.now());
+      const liveCountdownSeconds = Math.ceil(remainingMs / 1000);
+      return {
+        id: r.id,
+        name: r.name,
+        stake: r.stake,
+        status: r.status,
+        playerCount: this.getPlayerCount(r),
+        cardsSold: r.cardPurchases.size,
+        pot: this.calculateRoomPot(r),
+        countdownSeconds: liveCountdownSeconds
+      };
+    });
   }
 
   getRoomDetails(roomId) {
     const room = this.rooms.get(roomId);
     if (!room) return null;
+    const remainingMs = Math.max(0, (room.endTime || Date.now() + 60000) - Date.now());
+    const liveCountdownSeconds = Math.ceil(remainingMs / 1000);
     return {
       id: room.id,
       name: room.name,
       stake: room.stake,
       status: room.status,
       playerCount: this.getPlayerCount(room),
-      countdownSeconds: room.countdownSeconds,
+      countdownSeconds: liveCountdownSeconds,
       calledBalls: room.calledBalls,
       currentBall: room.currentBall,
       pot: this.calculateRoomPot(room),

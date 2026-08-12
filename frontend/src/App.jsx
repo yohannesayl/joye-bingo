@@ -29,15 +29,25 @@ export default function App() {
   const [customServerUrl, setCustomServerUrl] = useState(getBackendUrl());
   const [lang, setLang] = useState('en');
 
+  const [serverClockOffset, setServerClockOffset] = useState(0);
+  const [targetEndTime, setTargetEndTime] = useState(null);
   const [globalMasterSeconds, setGlobalMasterSeconds] = useState(60);
 
-  // Smooth 1-Second Countdown Loop (Ticks 60 -> 59 -> 58 smoothly, aligned by server socket events!)
+  // AHUN GAMES HIGH-PRECISION TICK ENGINE: Render exact remaining time against Unix Epoch targetEndTime + serverClockOffset
   useEffect(() => {
     const timerId = setInterval(() => {
-      setGlobalMasterSeconds(prev => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
+      if (targetEndTime) {
+        const adjustedNow = Date.now() + serverClockOffset;
+        const remainingMs = Math.max(0, targetEndTime - adjustedNow);
+        const secondsLeft = Math.ceil(remainingMs / 1000);
+        setGlobalMasterSeconds(secondsLeft);
+      } else {
+        setGlobalMasterSeconds(prev => (prev > 0 ? prev - 1 : 0));
+      }
+    }, 100);
+
     return () => clearInterval(timerId);
-  }, []);
+  }, [targetEndTime, serverClockOffset]);
 
   // Initialize & Restore User Session (Strict sessionStorage per-tab isolation!)
   useEffect(() => {
@@ -147,51 +157,67 @@ export default function App() {
   useEffect(() => {
     const socket = socketService.connect();
 
+    // AHUN GAMES STEP 1: Calculate precise server clock offset on connect
+    socket.on('connect', () => {
+      socketService.syncClock(({ clockOffset }) => {
+        setServerClockOffset(clockOffset);
+        socketService.joinRoom(currentRoomId, user);
+      });
+    });
+
+    const updateTimerState = (data) => {
+      if (data && data.targetEndTime) {
+        setTargetEndTime(data.targetEndTime);
+      }
+      if (data && data.serverTime) {
+        setServerClockOffset(prev => (prev === 0 ? data.serverTime - Date.now() : prev));
+      }
+      if (data && (data.seconds !== undefined || data.timeRemaining !== undefined)) {
+        setGlobalMasterSeconds(data.seconds !== undefined ? data.seconds : data.timeRemaining);
+      }
+    };
+
+    socket.on('lobby_state', updateTimerState);
+    socket.on('timer_tick', updateTimerState);
+    socket.on('lobby_tick', updateTimerState);
+    socket.on('lobby_status', updateTimerState);
+
     socket.on('lobby_list', (roomList) => {
       setRooms(roomList);
       if (Array.isArray(roomList) && roomList.length > 0) {
         const activeTargetRoom = roomList.find(r => r.id === currentRoomId) || roomList[0];
-        if (activeTargetRoom && (activeTargetRoom.countdownSeconds !== undefined || activeTargetRoom.seconds !== undefined)) {
-          setGlobalMasterSeconds(activeTargetRoom.seconds !== undefined ? activeTargetRoom.seconds : activeTargetRoom.countdownSeconds);
-        }
-      }
-    });
-
-    socket.on('timer_tick', (data) => {
-      if (data && (data.seconds !== undefined || data.timeRemaining !== undefined)) {
-        setGlobalMasterSeconds(data.seconds !== undefined ? data.seconds : data.timeRemaining);
-      }
-    });
-
-    socket.on('lobby_tick', (data) => {
-      if (data && (data.seconds !== undefined || data.timeRemaining !== undefined)) {
-        setGlobalMasterSeconds(data.seconds !== undefined ? data.seconds : data.timeRemaining);
-      }
-    });
-
-    socket.on('lobby_status', (data) => {
-      if (data && (data.seconds !== undefined || data.timeRemaining !== undefined)) {
-        setGlobalMasterSeconds(data.seconds !== undefined ? data.seconds : data.timeRemaining);
+        updateTimerState(activeTargetRoom);
       }
     });
 
     socket.on('lobby_reset', (data) => {
+      if (data?.targetEndTime) setTargetEndTime(data.targetEndTime);
       setGlobalMasterSeconds(data?.seconds || 60);
     });
 
+    socket.on('start_game', () => {
+      setTargetEndTime(null);
+      setGlobalMasterSeconds(0);
+      setShowCardSelector(false);
+      setActiveTab('game');
+    });
+
     socket.on('game_started', () => {
+      setTargetEndTime(null);
       setGlobalMasterSeconds(0);
       setShowCardSelector(false);
       setActiveTab('game');
     });
 
     socket.on('game_start', () => {
+      setTargetEndTime(null);
       setGlobalMasterSeconds(0);
       setShowCardSelector(false);
       setActiveTab('game');
     });
 
     socket.on('match_started', () => {
+      setTargetEndTime(null);
       setGlobalMasterSeconds(0);
       setShowCardSelector(false);
       setActiveTab('game');
@@ -200,10 +226,9 @@ export default function App() {
     socket.on('room_state', (roomDetails) => {
       if (roomDetails.id === currentRoomId || !currentRoomId) {
         setCurrentRoom(roomDetails);
-        if (roomDetails.countdownSeconds !== undefined || roomDetails.seconds !== undefined) {
-          setGlobalMasterSeconds(roomDetails.seconds !== undefined ? roomDetails.seconds : roomDetails.countdownSeconds);
-        }
+        updateTimerState(roomDetails);
         if (roomDetails.status === 'PLAYING') {
+          setTargetEndTime(null);
           setGlobalMasterSeconds(0);
           setShowCardSelector(false);
           setActiveTab('game');

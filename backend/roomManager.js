@@ -368,8 +368,8 @@ export class RoomManager {
       clearInterval(room.countdownTimer);
     }
 
-    if (room.countdownSeconds === undefined || room.countdownSeconds <= 0) {
-      room.countdownSeconds = 60;
+    if (!room.targetEndTime || room.targetEndTime <= Date.now()) {
+      room.targetEndTime = Date.now() + 60000;
     }
 
     const updateRoundClock = () => {
@@ -378,16 +378,28 @@ export class RoomManager {
         return;
       }
 
-      // DIRECT DECREMENT: Decrement integer seconds every 1000ms!
-      room.countdownSeconds--;
+      const now = Date.now();
+      const remainingMs = Math.max(0, room.targetEndTime - now);
+      room.countdownSeconds = Math.ceil(remainingMs / 1000);
 
       if (room.id === 'room_10' || room.countdownSeconds % 10 === 0 || room.countdownSeconds <= 10) {
-        console.log(`[SERVER TICK] ${room.id} -> Game starts in: ${room.countdownSeconds}s (Players: ${this.getPlayerCount(room)})`);
+        console.log(`[SERVER TICK] ${room.id} -> Game starts in: ${room.countdownSeconds}s (Target: ${room.targetEndTime})`);
       }
 
-      // ZERO CLIENT TIMER PATTERN: Broadcast exact integer second to ALL connected players simultaneously!
+      // AHUN GAMES EPOCH PROTOCOL: Broadcast absolute targetEndTime and serverTime to ALL connected players!
+      this.io.emit('lobby_state', {
+        roomId: room.id,
+        targetEndTime: room.targetEndTime,
+        serverTime: now,
+        seconds: room.countdownSeconds,
+        timeRemaining: room.countdownSeconds,
+        playerCount: this.getPlayerCount(room)
+      });
+
       this.io.emit('timer_tick', {
         roomId: room.id,
+        targetEndTime: room.targetEndTime,
+        serverTime: now,
         seconds: room.countdownSeconds,
         timeRemaining: room.countdownSeconds,
         playerCount: this.getPlayerCount(room)
@@ -395,6 +407,8 @@ export class RoomManager {
 
       this.io.emit('lobby_tick', {
         roomId: room.id,
+        targetEndTime: room.targetEndTime,
+        serverTime: now,
         seconds: room.countdownSeconds,
         timeRemaining: room.countdownSeconds,
         playerCount: this.getPlayerCount(room)
@@ -402,12 +416,14 @@ export class RoomManager {
 
       this.io.to(room.id).emit('lobby_status', {
         roomId: room.id,
+        targetEndTime: room.targetEndTime,
+        serverTime: now,
         seconds: room.countdownSeconds,
         playerCount: this.getPlayerCount(room),
         timeRemaining: room.countdownSeconds
       });
 
-      if (room.countdownSeconds <= 0) {
+      if (remainingMs <= 0 || room.countdownSeconds <= 0) {
         this.startGroupGame(room);
       } else {
         room.status = 'WAITING';
@@ -433,6 +449,12 @@ export class RoomManager {
 
     // Notify ALL players in this room at the SAME instant!
     const details = this.getRoomDetails(room.id);
+    this.io.to(room.id).emit('start_game', {
+      roomId: room.id,
+      totalPlayers: this.getPlayerCount(room),
+      room: details
+    });
+
     this.io.to(room.id).emit('game_started', {
       message: 'Lobby locked! Game starting for all players simultaneously.',
       totalPlayers: this.getPlayerCount(room),

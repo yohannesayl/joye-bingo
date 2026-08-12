@@ -33,8 +33,23 @@ class SocketService {
     return this.socket;
   }
 
+  syncClock(callback) {
+    const t1 = Date.now();
+    this.getSocket().emit('sync_clock', t1, (data) => {
+      const t4 = Date.now();
+      const rtt = t4 - (data?.clientTime || t1);
+      const serverTimeAtReceipt = (data?.serverTime || Date.now()) + (rtt / 2);
+      const clockOffset = serverTimeAtReceipt - t4;
+      if (typeof callback === 'function') {
+        callback({ rtt, clockOffset, serverTime: serverTimeAtReceipt });
+      }
+    });
+  }
+
   joinRoom(roomId, user) {
     this.getSocket().emit('join_room', { roomId, user });
+    this.getSocket().emit('join_match', { roomId, user });
+    this.getSocket().emit('join_queue', { roomId, user });
   }
 
   leaveRoom(roomId) {

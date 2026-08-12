@@ -52,7 +52,8 @@ export default function Lobby({ rooms, onJoinRoom, globalMasterSeconds, user }) 
         <div className="space-y-3">
           {defaultStakes.map(({ id, stake, bonus }) => {
             const liveRoom = roomMap[id] || {};
-            const status = liveRoom.status || 'COUNTDOWN';
+            const rawStatus = liveRoom.status;
+            const status = (rawStatus && rawStatus !== 'None' && rawStatus !== 'null') ? rawStatus : 'WAITING';
             const seconds = globalMasterSeconds !== undefined && globalMasterSeconds !== null ? globalMasterSeconds : 60;
             const pot = liveRoom.pot || (stake * 2 * 0.85);
             const playerCount = liveRoom.playerCount || 0;
@@ -81,11 +82,11 @@ export default function Lobby({ rooms, onJoinRoom, globalMasterSeconds, user }) 
                   </span>
                 </div>
 
-                {/* ACTIVE TIMER / STATUS COLUMN */}
+                {/* ACTIVE TIMER / STATUS COLUMN (Matching Screenshot 1) */}
                 <div className="col-span-3 text-center">
                   {status === 'PLAYING' ? (
-                    <span className="text-emerald-400 font-black text-sm uppercase tracking-widest animate-pulse font-mono">
-                      ⚡ PLAYING
+                    <span className="text-red-500 font-extrabold text-base sm:text-lg uppercase tracking-wider font-mono drop-shadow-[0_0_8px_rgba(239,68,68,0.7)] animate-pulse">
+                      Playing
                     </span>
                   ) : (() => {
                     const rawSeconds = globalMasterSeconds !== undefined && globalMasterSeconds !== null ? globalMasterSeconds : 60;
@@ -95,7 +96,7 @@ export default function Lobby({ rooms, onJoinRoom, globalMasterSeconds, user }) 
                     const formattedTimer = `${displayMins}:${displaySecs < 10 ? '0' : ''}${displaySecs}`;
 
                     return (
-                      <span className="digital-clock-red text-xl sm:text-2xl font-mono">
+                      <span className="text-red-500 font-black text-xl sm:text-2xl font-mono tracking-widest drop-shadow-[0_0_10px_rgba(239,68,68,0.9)]">
                         {formattedTimer}
                       </span>
                     );

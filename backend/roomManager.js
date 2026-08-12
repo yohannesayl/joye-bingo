@@ -173,7 +173,7 @@ export class RoomManager {
         id: r.id,
         name: r.name,
         stake: r.stake,
-        status: r.status,
+        status: (r.status && r.status !== 'None') ? r.status : 'WAITING',
         playerCount: this.getPlayerCount(r),
         cardsSold: r.cardPurchases.size,
         pot: this.calculateRoomPot(r),

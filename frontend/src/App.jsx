@@ -173,7 +173,9 @@ export default function App() {
         setServerClockOffset(prev => (prev === 0 ? data.serverTime - Date.now() : prev));
       }
       if (data && (data.seconds !== undefined || data.timeRemaining !== undefined)) {
-        setGlobalMasterSeconds(data.seconds !== undefined ? data.seconds : data.timeRemaining);
+        const rawSec = data.seconds !== undefined ? data.seconds : data.timeRemaining;
+        const pureSec = rawSec > 1000 ? Math.ceil(rawSec / 1000) : Math.max(0, Math.floor(rawSec));
+        setGlobalMasterSeconds(pureSec);
       }
     };
 

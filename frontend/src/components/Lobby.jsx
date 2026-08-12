@@ -87,11 +87,19 @@ export default function Lobby({ rooms, onJoinRoom, globalMasterSeconds, user }) 
                     <span className="text-emerald-400 font-black text-sm uppercase tracking-widest animate-pulse font-mono">
                       ⚡ PLAYING
                     </span>
-                  ) : (
-                    <span className="digital-clock-red text-xl sm:text-2xl font-mono">
-                      0:{seconds < 10 ? '0' : ''}{seconds}
-                    </span>
-                  )}
+                  ) : (() => {
+                    const rawSeconds = globalMasterSeconds !== undefined && globalMasterSeconds !== null ? globalMasterSeconds : 60;
+                    const sec = rawSeconds > 1000 ? Math.ceil(rawSeconds / 1000) : Math.max(0, Math.floor(rawSeconds));
+                    const displayMins = Math.floor(sec / 60);
+                    const displaySecs = sec % 60;
+                    const formattedTimer = `${displayMins}:${displaySecs < 10 ? '0' : ''}${displaySecs}`;
+
+                    return (
+                      <span className="digital-clock-red text-xl sm:text-2xl font-mono">
+                        {formattedTimer}
+                      </span>
+                    );
+                  })()}
                 </div>
 
                 {/* DYNAMIC POSSIBLE WIN COLUMN (Based on joined players & cards!) */}

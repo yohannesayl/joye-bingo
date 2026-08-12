@@ -191,6 +191,12 @@ export default function App() {
       setActiveTab('game');
     });
 
+    socket.on('match_started', () => {
+      setGlobalMasterSeconds(0);
+      setShowCardSelector(false);
+      setActiveTab('game');
+    });
+
     socket.on('room_state', (roomDetails) => {
       if (roomDetails.id === currentRoomId || !currentRoomId) {
         setCurrentRoom(roomDetails);

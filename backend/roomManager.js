@@ -439,6 +439,13 @@ export class RoomManager {
       room: details
     });
 
+    this.io.to(room.id).emit('match_started', {
+      roomId: room.id,
+      totalPlayers: this.getPlayerCount(room),
+      players: Array.from(room.players.values()),
+      room: details
+    });
+
     this.broadcastRoomUpdate(room.id);
 
     // Draw first ball immediately so all players see Ball #1 at 0:00!

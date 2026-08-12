@@ -226,10 +226,19 @@ io.on('connection', (socket) => {
 
   socket.on('join_room', async ({ roomId, user }) => {
     try {
-      const res = await roomManager.joinRoom(socket, roomId, user);
+      const res = await roomManager.joinRoom(socket, roomId || 'room_10', user);
       if (res && res.error) socket.emit('error_msg', res.error);
     } catch (e) {
       console.error('[Socket] Error in join_room:', e);
+    }
+  });
+
+  socket.on('join_queue', async ({ roomId = 'room_10', user }) => {
+    try {
+      const res = await roomManager.joinRoom(socket, roomId, user);
+      if (res && res.error) socket.emit('error_msg', res.error);
+    } catch (e) {
+      console.error('[Socket] Error in join_queue:', e);
     }
   });
 

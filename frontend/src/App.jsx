@@ -166,13 +166,17 @@ export default function App() {
     });
 
     const updateTimerState = (data) => {
-      if (data && data.targetEndTime) {
+      if (!data) return;
+      // STRICT STAKE ISOLATION: Only update timer state if event matches current selected room!
+      if (currentRoomId && data.roomId && data.roomId !== currentRoomId) return;
+
+      if (data.targetEndTime) {
         setTargetEndTime(data.targetEndTime);
       }
-      if (data && data.serverTime) {
+      if (data.serverTime) {
         setServerClockOffset(prev => (prev === 0 ? data.serverTime - Date.now() : prev));
       }
-      if (data && (data.seconds !== undefined || data.timeRemaining !== undefined)) {
+      if (data.seconds !== undefined || data.timeRemaining !== undefined) {
         const rawSec = data.seconds !== undefined ? data.seconds : data.timeRemaining;
         const pureSec = rawSec > 1000 ? Math.ceil(rawSec / 1000) : Math.max(0, Math.floor(rawSec));
         setGlobalMasterSeconds(pureSec);
@@ -186,10 +190,14 @@ export default function App() {
     socket.on('lobby_status', updateTimerState);
 
     const handleMatchStartEvent = (data) => {
-      const targetRoomId = data?.roomId || currentRoomId;
+      if (!data) return;
+      // STRICT STAKE ISOLATION: Only transition match if event matches current selected room!
+      if (currentRoomId && data.roomId && data.roomId !== currentRoomId) return;
+
+      const targetRoomId = data.roomId || currentRoomId;
       const savedCardId = targetRoomId ? sessionStorage.getItem(`joye_card_${targetRoomId}`) : null;
       
-      const isUserInMatch = !!savedCardId || (data?.players || []).some(p => 
+      const isUserInMatch = !!savedCardId || (data.players || []).some(p => 
         p.userId === user?.id || (p.userName && user?.username && p.userName.toLowerCase() === user.username.toLowerCase())
       );
 
@@ -208,15 +216,18 @@ export default function App() {
     socket.on('start_game', handleMatchStartEvent);
     socket.on('game_started', handleMatchStartEvent);
     socket.on('game_start', handleMatchStartEvent);
-
     socket.on('match_started', handleMatchStartEvent);
 
     socket.on('room_state', (roomDetails) => {
-      if (roomDetails.id === currentRoomId || !currentRoomId) {
+      if (!roomDetails) return;
+      // STRICT STAKE ISOLATION: Only update room if details match current room!
+      const isCurrent = roomDetails.id === currentRoomId || roomDetails.roomId === currentRoomId;
+      if (isCurrent) {
         setCurrentRoom(roomDetails);
         updateTimerState(roomDetails);
         if (roomDetails.status === 'PLAYING') {
-          const savedCardId = sessionStorage.getItem(`joye_card_${roomDetails.id}`);
+          const roomId = roomDetails.id || roomDetails.roomId;
+          const savedCardId = sessionStorage.getItem(`joye_card_${roomId}`);
           const isUserInMatch = !!savedCardId || (roomDetails.purchasedCards || []).some(cp =>
             cp.userId === user?.id || (cp.userName && user?.username && cp.userName.toLowerCase() === user.username.toLowerCase())
           );
@@ -230,7 +241,7 @@ export default function App() {
           }
         }
       }
-      setRooms(prev => prev.map(r => r.id === roomDetails.id ? { ...r, ...roomDetails } : r));
+      setRooms(prev => prev.map(r => (r.id === roomDetails.id || r.id === roomDetails.roomId) ? { ...r, ...roomDetails } : r));
     });
 
     socket.on('card_bought', (res) => {

@@ -104,10 +104,12 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
 
   // SOCKET REAL-TIME SYNC: ALL BROWSERS RECEIVE SAME DRAWN BALLS & WINNER BROADCAST!
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !room?.id) return;
 
     const handleBallCalled = (data) => {
-      if (isGameOver) return;
+      if (isGameOver || !data) return;
+      if (data.roomId && data.roomId !== room.id) return;
+
       if (data.ball) {
         setIsStep4Active(true);
         setLiveCurrentBall(data.ball);
@@ -121,15 +123,18 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     };
 
     const handleBingoWinner = (data) => {
+      if (!data) return;
+      if (data.roomId && data.roomId !== room.id) return;
+
       setIsGameOver(true);
       setIsStep4Active(false);
 
       const winnerData = data.winner;
       setWinnerModal(winnerData);
 
-      const isMe = winnerData.userId === user?.id || (
+      const isMe = winnerData && (winnerData.userId === user?.id || (
         winnerData.userName && user && winnerData.userName.toLowerCase() === (user.displayName || user.username || '').toLowerCase()
-      );
+      ));
 
       if (isMe) {
         sound.playWinFanfare();
@@ -150,6 +155,9 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
 
     const handleRoomState = (data) => {
       if (!data) return;
+      if (data.id && data.id !== room.id) return;
+      if (data.roomId && data.roomId !== room.id) return;
+
       if (data.status === 'PLAYING' || (data.calledBalls && data.calledBalls.length > 0)) {
         setIsStep4Active(true);
         setIsGameOver(false);
@@ -159,14 +167,17 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
       if (data.countdownSeconds !== undefined) setStep3Countdown(data.countdownSeconds);
     };
 
-    const handleGameStarted = () => {
+    const handleGameStarted = (data) => {
+      if (data && data.roomId && data.roomId !== room.id) return;
       setIsStep4Active(true);
       setIsGameOver(false);
       sound.playClick();
     };
 
     const handleNumberDrawn = (data) => {
-      if (isGameOver) return;
+      if (isGameOver || !data) return;
+      if (data.roomId && data.roomId !== room.id) return;
+
       if (data.ball) {
         setIsStep4Active(true);
         setLiveCurrentBall(data.ball);
@@ -180,9 +191,10 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
     };
 
     const handleGameOver = (data) => {
+      if (data && data.roomId && data.roomId !== room.id) return;
       setIsGameOver(true);
       setIsStep4Active(false);
-      if (data.winner) setWinnerModal(data.winner);
+      if (data?.winner) setWinnerModal(data.winner);
     };
 
     socket.on('ball_called', handleBallCalled);

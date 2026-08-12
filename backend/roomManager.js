@@ -278,7 +278,7 @@ export class RoomManager {
   }
 
   async buyCard(socket, roomId, userId, cardId) {
-    let room = this.rooms.get(roomId);
+    let room = await this.getOrCreateActiveRoom(roomId);
     if (!room) return { error: 'Room not found' };
 
     if (room.cardPurchases.has(cardId)) {

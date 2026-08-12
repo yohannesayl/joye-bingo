@@ -38,11 +38,17 @@ export class RoomManager {
   }
 
   async getOrCreateActiveRoom(stakeId = 'room_10', forceReset = false) {
+    // 1. If in-memory room exists and is active, RETURN IT IMMEDIATELY (Prevents Atlas reset loop!)
+    let room = this.rooms.get(stakeId);
+    if (!forceReset && room && room.status === 'WAITING' && room.targetEndTime > Date.now()) {
+      return room;
+    }
+
     const now = new Date();
     const stakeNum = parseInt(stakeId.replace('room_', ''), 10) || 10;
     const LOBBY_DURATION_MS = 60000; // 60 seconds room window
 
-    // 1. Query MongoDB Atlas for active WAITING document whose endTime has NOT passed
+    // 2. Query MongoDB Atlas for active WAITING document whose endTime has NOT passed
     let roomDoc = await db.getRoomState(stakeId);
     if (forceReset || !roomDoc || roomDoc.status !== 'WAITING' || !roomDoc.endTime || new Date(roomDoc.endTime) <= now) {
       // Create/Reset persistent lobby document in MongoDB Atlas with startTime and endTime ISODates
@@ -75,7 +81,7 @@ export class RoomManager {
     const remainingMs = Math.max(0, endTimeMs - Date.now());
     const remainingSeconds = Math.ceil(remainingMs / 1000);
 
-    let room = this.rooms.get(stakeId);
+    room = this.rooms.get(stakeId);
     if (!room) {
       room = {
         id: stakeId,
@@ -83,6 +89,7 @@ export class RoomManager {
         name: `${stakeNum}birr Match`,
         stake: stakeNum,
         status: (roomDoc && roomDoc.status) || 'WAITING',
+        targetEndTime: endTimeMs,
         endTime: endTimeMs,
         countdownSeconds: remainingSeconds,
         players: new Map(),
@@ -99,9 +106,9 @@ export class RoomManager {
       this.rooms.set(stakeId, room);
       this.startCountdown(stakeId);
     } else {
-      room.endTime = endTimeMs;
-      room.countdownSeconds = remainingSeconds;
-      if (roomDoc && roomDoc.status) room.status = roomDoc.status;
+      if (!room.targetEndTime || room.targetEndTime <= Date.now()) {
+        room.targetEndTime = endTimeMs;
+      }
     }
 
     return room;
@@ -156,7 +163,10 @@ export class RoomManager {
   getRoomList() {
     const now = Date.now();
     return Array.from(this.rooms.values()).map(r => {
-      const targetEndTime = r.endTime || (now + 60000);
+      if (!r.targetEndTime || r.targetEndTime <= now) {
+        r.targetEndTime = now + 60000;
+      }
+      const targetEndTime = r.targetEndTime;
       const remainingMs = Math.max(0, targetEndTime - now);
       const liveCountdownSeconds = Math.ceil(remainingMs / 1000);
       return {
@@ -178,7 +188,10 @@ export class RoomManager {
     const room = this.rooms.get(roomId);
     if (!room) return null;
     const now = Date.now();
-    const targetEndTime = room.endTime || (now + 60000);
+    if (!room.targetEndTime || room.targetEndTime <= now) {
+      room.targetEndTime = now + 60000;
+    }
+    const targetEndTime = room.targetEndTime;
     const remainingMs = Math.max(0, targetEndTime - now);
     const liveCountdownSeconds = Math.ceil(remainingMs / 1000);
     return {
@@ -222,7 +235,10 @@ export class RoomManager {
     room.pot = this.calculateRoomPot(room);
 
     const now = Date.now();
-    const targetEndTime = room.endTime || (now + 60000);
+    if (!room.targetEndTime || room.targetEndTime <= now) {
+      room.targetEndTime = now + 60000;
+    }
+    const targetEndTime = room.targetEndTime;
     const remainingMs = Math.max(0, targetEndTime - now);
     const remainingSeconds = Math.ceil(remainingMs / 1000);
 

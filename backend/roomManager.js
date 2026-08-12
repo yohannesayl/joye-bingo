@@ -37,14 +37,45 @@ export class RoomManager {
     });
   }
 
-  getOrCreateActiveRoom(stakeId = 'room_10') {
+  async getOrCreateActiveRoom(stakeId = 'room_10') {
+    const now = new Date();
+    const stakeNum = parseInt(stakeId.replace('room_', ''), 10) || 10;
+    const LOBBY_DURATION_MS = 60000; // 60 seconds room window
+
     let room = this.activeLobbies.get(stakeId);
 
-    // If no room exists, or the current room is already playing, start a brand new room
+    // If memory room is missing or no longer WAITING:
     if (!room || room.status !== 'WAITING') {
-      const LOBBY_DURATION_MS = 60000; // 60 seconds room window
-      const endTime = Date.now() + LOBBY_DURATION_MS;
-      const stakeNum = parseInt(stakeId.replace('room_', ''), 10) || 10;
+      // 1. Query MongoDB Atlas for an active WAITING document whose endTime has NOT passed
+      const roomId = stakeId;
+      const startTime = now;
+      const endTime = new Date(now.getTime() + LOBBY_DURATION_MS);
+
+      let roomDoc = await db.getRoomState(stakeId);
+      if (!roomDoc || roomDoc.status !== 'WAITING' || !roomDoc.endTime || new Date(roomDoc.endTime) <= now) {
+        // Create new lobby document in MongoDB Atlas
+        const updated = await db.updateRoomState(roomId, {
+          roomId,
+          stakeId,
+          name: `${stakeNum}birr Match`,
+          stake: stakeNum,
+          status: 'WAITING',
+          startTime,
+          endTime,
+          countdownSeconds: 60,
+          players: [],
+          cardPurchases: [],
+          calledBalls: [],
+          currentBall: null,
+          winner: null,
+          pot: 0
+        });
+        if (updated) roomDoc = updated;
+        console.log(`[MongoDB Atlas] Persistent lobby created: ${roomId}. Lock at: ${endTime}`);
+      }
+
+      const safeEndTime = (roomDoc && roomDoc.endTime) ? roomDoc.endTime : endTime;
+      const endTimeMs = new Date(safeEndTime).getTime();
 
       room = {
         id: stakeId,
@@ -52,24 +83,24 @@ export class RoomManager {
         name: `${stakeNum}birr Match`,
         stake: stakeNum,
         status: 'WAITING',
-        endTime: endTime,
-        countdownSeconds: 60,
+        endTime: endTimeMs,
+        countdownSeconds: Math.max(0, Math.ceil((endTimeMs - Date.now()) / 1000)),
         players: new Map(),
         cardPurchases: new Map(),
-        calledBalls: [],
+        calledBalls: roomDoc ? (roomDoc.calledBalls || []) : [],
         remainingBalls: Array.from({ length: 75 }, (_, i) => i + 1),
-        currentBall: null,
+        currentBall: roomDoc ? (roomDoc.currentBall || null) : null,
         callInterval: null,
         callSpeedMs: 3000,
-        pot: 0,
-        winner: null,
+        pot: roomDoc ? (roomDoc.pot || 0) : 0,
+        winner: roomDoc ? (roomDoc.winner || null) : null,
         timer: null
       };
 
-      // Set ONE single timeout for the entire room
+      const remainingMs = Math.max(0, endTimeMs - Date.now());
       room.timer = setTimeout(() => {
         this.startGroupGame(room);
-      }, LOBBY_DURATION_MS);
+      }, remainingMs);
 
       this.activeLobbies.set(stakeId, room);
       this.rooms.set(stakeId, room);
@@ -161,8 +192,8 @@ export class RoomManager {
     };
   }
 
-  joinRoom(socket, roomId, user) {
-    let room = this.getOrCreateActiveRoom(roomId);
+  async joinRoom(socket, roomId, user) {
+    let room = await this.getOrCreateActiveRoom(roomId);
     if (!room) return { error: 'Room not found' };
 
     const effectiveUserId = user?.id || `user_${socket.id}`;

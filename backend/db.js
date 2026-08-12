@@ -49,10 +49,13 @@ const gameHistorySchema = new mongoose.Schema({
 
 const roomStateSchema = new mongoose.Schema({
   roomId: { type: String, required: true, unique: true },
+  stakeId: { type: String, default: 'room_10' },
   name: { type: String, default: '' },
   stake: { type: Number, default: 10 },
-  status: { type: String, default: 'COUNTDOWN' },
-  countdownSeconds: { type: Number, default: 45 },
+  status: { type: String, enum: ['WAITING', 'PLAYING', 'FINISHED'], default: 'WAITING' },
+  startTime: { type: Date, default: Date.now },
+  endTime: { type: Date, required: true },
+  countdownSeconds: { type: Number, default: 60 },
   pot: { type: Number, default: 0 },
   players: { type: Array, default: [] },
   cardPurchases: { type: Array, default: [] },

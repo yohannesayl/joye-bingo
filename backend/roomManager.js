@@ -243,6 +243,13 @@ export class RoomManager {
     const remainingSeconds = Math.ceil(remainingMs / 1000);
 
     // CRITICAL: Send fixed targetEndTime AND serverTime timestamp to ALL players in this room!
+    this.io.to(room.id).emit('lobby_state_update', {
+      roomId: room.id,
+      targetEndTime: targetEndTime,
+      serverTime: now,
+      playerCount: activeCount
+    });
+
     this.io.to(room.id).emit('lobby_status', {
       roomId: room.id,
       playerCount: activeCount,
@@ -465,6 +472,11 @@ export class RoomManager {
 
     // Notify ALL players in this room at the SAME instant!
     const details = this.getRoomDetails(room.id);
+    this.io.to(room.id).emit('start_match', {
+      roomId: room.id,
+      players: Array.from(room.players.values())
+    });
+
     this.io.to(room.id).emit('start_game', {
       roomId: room.id,
       totalPlayers: this.getPlayerCount(room),

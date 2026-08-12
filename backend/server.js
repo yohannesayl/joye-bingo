@@ -224,13 +224,23 @@ io.on('connection', (socket) => {
 
   socket.emit('lobby_list', roomManager.getRoomList());
 
-  // NTP Clock Ping Endpoint for Ahun Games style clock synchronization
-  socket.on('sync_clock', (clientTime, callback) => {
+  // NTP Clock Ping Endpoint matching user script
+  socket.on('sync_clock', (clientPingTime, callback) => {
     if (typeof callback === 'function') {
       callback({
-        clientTime: clientTime,
+        clientPingTime,
         serverTime: Date.now()
       });
+    }
+  });
+
+  socket.on('join_match', async (userData) => {
+    try {
+      const roomId = userData?.roomId || 'room_10';
+      const res = await roomManager.joinRoom(socket, roomId, userData);
+      if (res && res.error) socket.emit('error_msg', res.error);
+    } catch (e) {
+      console.error('[Socket] Error in join_match:', e);
     }
   });
 
@@ -240,15 +250,6 @@ io.on('connection', (socket) => {
       if (res && res.error) socket.emit('error_msg', res.error);
     } catch (e) {
       console.error('[Socket] Error in join_room:', e);
-    }
-  });
-
-  socket.on('join_match', async ({ roomId = 'room_10', user }) => {
-    try {
-      const res = await roomManager.joinRoom(socket, roomId, user);
-      if (res && res.error) socket.emit('error_msg', res.error);
-    } catch (e) {
-      console.error('[Socket] Error in join_match:', e);
     }
   });
 

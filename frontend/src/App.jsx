@@ -179,10 +179,18 @@ export default function App() {
       }
     };
 
+    socket.on('lobby_state_update', updateTimerState);
     socket.on('lobby_state', updateTimerState);
     socket.on('timer_tick', updateTimerState);
     socket.on('lobby_tick', updateTimerState);
     socket.on('lobby_status', updateTimerState);
+
+    socket.on('start_match', () => {
+      setTargetEndTime(null);
+      setGlobalMasterSeconds(0);
+      setShowCardSelector(false);
+      setActiveTab('game');
+    });
 
     socket.on('lobby_list', (roomList) => {
       setRooms(roomList);

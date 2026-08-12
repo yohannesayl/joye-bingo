@@ -597,16 +597,23 @@ export class RoomManager {
       pot: room.pot
     });
 
-    this.io.to(room.id).emit('bingo_winner', {
+    const winnerPayload = {
       roomId: room.id,
       winner: room.winner
-    });
+    };
+
+    // Broadcast bingo_winner & game_over to ALL connected sockets globally!
+    this.io.to(room.id).emit('bingo_winner', winnerPayload);
+    this.io.emit('bingo_winner', winnerPayload);
+    this.io.to(room.id).emit('game_over', winnerPayload);
+    this.io.emit('game_over', winnerPayload);
 
     this.broadcastRoomUpdate(room.id);
 
+    // Reset room state and start next game automatically after 4 seconds!
     setTimeout(() => {
       this.resetAndNextMatch(room.id);
-    }, 5000);
+    }, 4000);
   }
 
   resetAndNextMatch(roomId) {

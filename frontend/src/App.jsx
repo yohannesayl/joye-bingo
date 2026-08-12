@@ -162,10 +162,20 @@ export default function App() {
       }
     });
 
+    socket.on('lobby_tick', (data) => {
+      if (data && data.timeRemaining !== undefined) {
+        setGlobalMasterSeconds(data.timeRemaining);
+      }
+    });
+
     socket.on('lobby_status', (data) => {
       if (data.timeRemaining !== undefined) {
         setGlobalMasterSeconds(data.timeRemaining);
       }
+    });
+
+    socket.on('lobby_reset', () => {
+      setGlobalMasterSeconds(60);
     });
 
     socket.on('game_started', () => {

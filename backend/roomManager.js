@@ -350,15 +350,28 @@ export class RoomManager {
     }
 
     const updateRoundClock = () => {
-      // If match is currently PLAYING or FINISHED, do NOT interrupt!
+      // If match is currently PLAYING or FINISHED, do NOT interrupt countdown
       if (room.status === 'PLAYING' || room.status === 'FINISHED') {
         return;
       }
 
-      // Calculate EXACT remaining seconds left on the room's single shared clock (room.endTime)
+      // Calculate EXACT remaining seconds left on the single shared lobby clock
       const remainingMs = Math.max(0, (room.endTime || Date.now() + 60000) - Date.now());
       const remainingSeconds = Math.ceil(remainingMs / 1000);
       room.countdownSeconds = remainingSeconds;
+
+      // Solution 1: SERVER-PUSHED CLOCK TICK EVERY SECOND TO ALL CONNECTED CLIENTS!
+      this.io.emit('lobby_tick', {
+        roomId: room.id,
+        timeRemaining: room.countdownSeconds,
+        playerCount: this.getPlayerCount(room)
+      });
+
+      this.io.to(room.id).emit('lobby_status', {
+        roomId: room.id,
+        playerCount: this.getPlayerCount(room),
+        timeRemaining: room.countdownSeconds
+      });
 
       if (room.countdownSeconds <= 0) {
         this.startGroupGame(room);

@@ -14,11 +14,12 @@ export default function Navbar({
   onRefresh,
   onGoHome
 }) {
+  const isPlayingMode = activeTab === 'game';
   const rawSec = globalMasterSeconds !== undefined && globalMasterSeconds !== null ? globalMasterSeconds : 60;
   const sec = rawSec > 1000 ? Math.ceil(rawSec / 1000) : Math.max(0, Math.floor(rawSec));
   const mins = Math.floor(sec / 60);
   const secs = sec % 60;
-  const formattedTimer = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  const formattedTimer = isPlayingMode ? '0:00' : `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 
   return (
     <header className="bg-[#2a1240]/95 backdrop-blur border-b border-purple-900/60 px-4 py-3 sticky top-0 z-50">

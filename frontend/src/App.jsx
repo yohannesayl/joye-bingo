@@ -33,18 +33,18 @@ export default function App() {
   const [targetEndTime, setTargetEndTime] = useState(null);
   const [globalMasterSeconds, setGlobalMasterSeconds] = useState(60);
 
-  // AHUN GAMES HIGH-PRECISION TICK ENGINE: Render exact remaining time against Unix Epoch targetEndTime + serverClockOffset
+  // Pure 1-Second Countdown Engine (Ticks strictly once per full second: 1000ms)
   useEffect(() => {
     const timerId = setInterval(() => {
       if (targetEndTime) {
         const adjustedNow = Date.now() + serverClockOffset;
         const remainingMs = Math.max(0, targetEndTime - adjustedNow);
         const secondsLeft = Math.ceil(remainingMs / 1000);
-        setGlobalMasterSeconds(secondsLeft);
+        setGlobalMasterSeconds(prev => (prev !== secondsLeft ? secondsLeft : prev));
       } else {
         setGlobalMasterSeconds(prev => (prev > 0 ? prev - 1 : 0));
       }
-    }, 100);
+    }, 1000);
 
     return () => clearInterval(timerId);
   }, [targetEndTime, serverClockOffset]);

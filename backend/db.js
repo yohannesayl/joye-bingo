@@ -72,6 +72,7 @@ export const RoomState = mongoose.model('RoomState', roomStateSchema);
 
 class DatabaseService {
   constructor() {
+    this.onConnectCallback = null;
     this.connectMongo();
     this.localData = this.loadLocal();
   }
@@ -84,6 +85,9 @@ class DatabaseService {
       });
       isMongoConnected = true;
       console.log('✅ Connected successfully to MongoDB Atlas (Joye-bingo database)!');
+      if (typeof this.onConnectCallback === 'function') {
+        this.onConnectCallback();
+      }
     } catch (err) {
       console.warn('⚠️ MongoDB connection notice (Using fallback database):', err.message);
       isMongoConnected = false;

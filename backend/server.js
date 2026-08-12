@@ -26,6 +26,11 @@ app.use(express.json());
 
 const roomManager = new RoomManager(io);
 
+db.onConnectCallback = () => {
+  console.log('🔄 Syncing room states to MongoDB Atlas database...');
+  roomManager.initDefaultRooms();
+};
+
 // REST API HEALTH ROUTE
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', name: 'Joye Bingo API', db: 'Joye-bingo', version: '1.0.0', time: new Date() });

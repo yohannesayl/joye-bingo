@@ -185,63 +185,49 @@ export default function App() {
     socket.on('lobby_tick', updateTimerState);
     socket.on('lobby_status', updateTimerState);
 
-    socket.on('start_match', () => {
-      setTargetEndTime(null);
-      setGlobalMasterSeconds(0);
-      setShowCardSelector(false);
-      setActiveTab('game');
-    });
+    const handleMatchStartEvent = (data) => {
+      const targetRoomId = data?.roomId || currentRoomId;
+      const savedCardId = targetRoomId ? sessionStorage.getItem(`joye_card_${targetRoomId}`) : null;
+      
+      const isUserInMatch = !!savedCardId || (data?.players || []).some(p => 
+        p.userId === user?.id || (p.userName && user?.username && p.userName.toLowerCase() === user.username.toLowerCase())
+      );
 
-    socket.on('lobby_list', (roomList) => {
-      setRooms(roomList);
-      if (Array.isArray(roomList) && roomList.length > 0) {
-        const activeTargetRoom = roomList.find(r => r.id === currentRoomId) || roomList[0];
-        updateTimerState(activeTargetRoom);
+      if (isUserInMatch) {
+        setTargetEndTime(null);
+        setGlobalMasterSeconds(0);
+        setShowCardSelector(false);
+        setActiveTab('game');
+      } else {
+        // Player did NOT buy a card for this match: Stay on Lobby screen!
+        setActiveTab('lobby');
       }
-    });
+    };
 
-    socket.on('lobby_reset', (data) => {
-      if (data?.targetEndTime) setTargetEndTime(data.targetEndTime);
-      setGlobalMasterSeconds(data?.seconds || 60);
-    });
+    socket.on('start_match', handleMatchStartEvent);
+    socket.on('start_game', handleMatchStartEvent);
+    socket.on('game_started', handleMatchStartEvent);
+    socket.on('game_start', handleMatchStartEvent);
 
-    socket.on('start_game', () => {
-      setTargetEndTime(null);
-      setGlobalMasterSeconds(0);
-      setShowCardSelector(false);
-      setActiveTab('game');
-    });
-
-    socket.on('game_started', () => {
-      setTargetEndTime(null);
-      setGlobalMasterSeconds(0);
-      setShowCardSelector(false);
-      setActiveTab('game');
-    });
-
-    socket.on('game_start', () => {
-      setTargetEndTime(null);
-      setGlobalMasterSeconds(0);
-      setShowCardSelector(false);
-      setActiveTab('game');
-    });
-
-    socket.on('match_started', () => {
-      setTargetEndTime(null);
-      setGlobalMasterSeconds(0);
-      setShowCardSelector(false);
-      setActiveTab('game');
-    });
+    socket.on('match_started', handleMatchStartEvent);
 
     socket.on('room_state', (roomDetails) => {
       if (roomDetails.id === currentRoomId || !currentRoomId) {
         setCurrentRoom(roomDetails);
         updateTimerState(roomDetails);
         if (roomDetails.status === 'PLAYING') {
-          setTargetEndTime(null);
-          setGlobalMasterSeconds(0);
-          setShowCardSelector(false);
-          setActiveTab('game');
+          const savedCardId = sessionStorage.getItem(`joye_card_${roomDetails.id}`);
+          const isUserInMatch = !!savedCardId || (roomDetails.purchasedCards || []).some(cp =>
+            cp.userId === user?.id || (cp.userName && user?.username && cp.userName.toLowerCase() === user.username.toLowerCase())
+          );
+          if (isUserInMatch) {
+            setTargetEndTime(null);
+            setGlobalMasterSeconds(0);
+            setShowCardSelector(false);
+            setActiveTab('game');
+          } else {
+            setActiveTab('lobby');
+          }
         }
       }
       setRooms(prev => prev.map(r => r.id === roomDetails.id ? { ...r, ...roomDetails } : r));

@@ -3603,6 +3603,21 @@
       "gamesPlayed": 0,
       "status": "ACTIVE",
       "joinedAt": "2026-08-12T11:55:31.969Z"
+    },
+    "user_1786535844588": {
+      "id": "user_1786535844588",
+      "username": "Player_4588",
+      "displayName": "Player #4588",
+      "phonenumber": "0918878127",
+      "phone": "0946558247",
+      "password": "123",
+      "amount": 1000,
+      "balance": 1000,
+      "totalWins": 0,
+      "totalEarned": 0,
+      "gamesPlayed": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-08-12T11:57:24.809Z"
     }
   },
   "transactions": [

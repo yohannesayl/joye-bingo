@@ -174,6 +174,19 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
       sound.playClick();
     };
 
+    const handleTimerTick = (data) => {
+      if (!data) return;
+      if (data.roomId && data.roomId !== room.id) return;
+      if (data.seconds !== undefined || data.timeRemaining !== undefined) {
+        const rawSec = data.seconds !== undefined ? data.seconds : data.timeRemaining;
+        const pureSec = rawSec > 1000 ? Math.ceil(rawSec / 1000) : Math.max(0, Math.floor(rawSec));
+        setStep3Countdown(pureSec);
+        if (pureSec <= 0) {
+          setIsStep4Active(true);
+        }
+      }
+    };
+
     const handleNumberDrawn = (data) => {
       if (isGameOver || !data) return;
       if (data.roomId && data.roomId !== room.id) return;
@@ -199,18 +212,32 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
 
     socket.on('ball_called', handleBallCalled);
     socket.on('number_drawn', handleNumberDrawn);
+    socket.on('start_match', handleGameStarted);
+    socket.on('start_game', handleGameStarted);
     socket.on('game_started', handleGameStarted);
+    socket.on('game_start', handleGameStarted);
+    socket.on('match_started', handleGameStarted);
     socket.on('game_over', handleGameOver);
     socket.on('bingo_winner', handleBingoWinner);
     socket.on('room_state', handleRoomState);
+    socket.on('timer_tick', handleTimerTick);
+    socket.on('lobby_status', handleTimerTick);
+    socket.on('lobby_tick', handleTimerTick);
 
     return () => {
       socket.off('ball_called', handleBallCalled);
       socket.off('number_drawn', handleNumberDrawn);
+      socket.off('start_match', handleGameStarted);
+      socket.off('start_game', handleGameStarted);
       socket.off('game_started', handleGameStarted);
+      socket.off('game_start', handleGameStarted);
+      socket.off('match_started', handleGameStarted);
       socket.off('game_over', handleGameOver);
       socket.off('bingo_winner', handleBingoWinner);
       socket.off('room_state', handleRoomState);
+      socket.off('timer_tick', handleTimerTick);
+      socket.off('lobby_status', handleTimerTick);
+      socket.off('lobby_tick', handleTimerTick);
     };
   }, [socket, voiceOn, isGameOver, user?.id]);
 

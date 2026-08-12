@@ -33,7 +33,7 @@ export class RoomManager {
     ];
 
     for (const cfg of roomConfigs) {
-      await this.getOrCreateActiveRoom(cfg.id, true);
+      await this.getOrCreateActiveRoom(cfg.id, false);
     }
   }
 
@@ -162,9 +162,10 @@ export class RoomManager {
 
   getRoomList() {
     const now = Date.now();
+    const globalNextStart = Math.ceil(now / 60000) * 60000;
     return Array.from(this.rooms.values()).map(r => {
       if (!r.targetEndTime || r.targetEndTime <= now) {
-        r.targetEndTime = now + 60000;
+        r.targetEndTime = globalNextStart;
       }
       const targetEndTime = r.targetEndTime;
       const remainingMs = Math.max(0, targetEndTime - now);
@@ -188,8 +189,9 @@ export class RoomManager {
     const room = this.rooms.get(roomId);
     if (!room) return null;
     const now = Date.now();
+    const globalNextStart = Math.ceil(now / 60000) * 60000;
     if (!room.targetEndTime || room.targetEndTime <= now) {
-      room.targetEndTime = now + 60000;
+      room.targetEndTime = globalNextStart;
     }
     const targetEndTime = room.targetEndTime;
     const remainingMs = Math.max(0, targetEndTime - now);
@@ -235,8 +237,9 @@ export class RoomManager {
     room.pot = this.calculateRoomPot(room);
 
     const now = Date.now();
+    const globalNextStart = Math.ceil(now / 60000) * 60000;
     if (!room.targetEndTime || room.targetEndTime <= now) {
-      room.targetEndTime = now + 60000;
+      room.targetEndTime = globalNextStart;
     }
     const targetEndTime = room.targetEndTime;
     const remainingMs = Math.max(0, targetEndTime - now);
@@ -391,8 +394,10 @@ export class RoomManager {
       clearInterval(room.countdownTimer);
     }
 
-    if (!room.targetEndTime || room.targetEndTime <= Date.now()) {
-      room.targetEndTime = Date.now() + 60000;
+    const now = Date.now();
+    const globalNextStart = Math.ceil(now / 60000) * 60000;
+    if (!room.targetEndTime || room.targetEndTime <= now) {
+      room.targetEndTime = globalNextStart;
     }
 
     const updateRoundClock = () => {

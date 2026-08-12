@@ -473,29 +473,22 @@ export class RoomManager {
 
     // Notify ALL players in this room at the SAME instant!
     const details = this.getRoomDetails(room.id);
-    this.io.to(room.id).emit('start_match', {
+    const startPayload = {
       roomId: room.id,
-      players: Array.from(room.players.values())
-    });
-
-    this.io.to(room.id).emit('start_game', {
-      roomId: room.id,
-      totalPlayers: this.getPlayerCount(room),
-      room: details
-    });
-
-    this.io.to(room.id).emit('game_started', {
-      message: 'Lobby locked! Game starting for all players simultaneously.',
-      totalPlayers: this.getPlayerCount(room),
-      room: details
-    });
-
-    this.io.to(room.id).emit('match_started', {
-      roomId: room.id,
-      totalPlayers: this.getPlayerCount(room),
       players: Array.from(room.players.values()),
-      room: details
-    });
+      totalPlayers: this.getPlayerCount(room),
+      room: details,
+      message: 'Lobby locked! Game starting for all players simultaneously.'
+    };
+
+    this.io.to(room.id).emit('start_match', startPayload);
+    this.io.emit('start_match', startPayload);
+    this.io.to(room.id).emit('start_game', startPayload);
+    this.io.emit('start_game', startPayload);
+    this.io.to(room.id).emit('game_started', startPayload);
+    this.io.emit('game_started', startPayload);
+    this.io.to(room.id).emit('match_started', startPayload);
+    this.io.emit('match_started', startPayload);
 
     this.broadcastRoomUpdate(room.id);
 
@@ -560,9 +553,11 @@ export class RoomManager {
       history: room.calledBalls
     };
 
-    // Broadcast "number_drawn" & "ball_called" to ALL connected players in that room simultaneously!
+    // Broadcast "number_drawn" & "ball_called" to ALL connected players!
     this.io.to(roomId).emit('number_drawn', ballPayload);
+    this.io.emit('number_drawn', ballPayload);
     this.io.to(roomId).emit('ball_called', ballPayload);
+    this.io.emit('ball_called', ballPayload);
 
     this.broadcastRoomUpdate(roomId);
     return ball;

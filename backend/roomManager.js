@@ -38,7 +38,8 @@ export class RoomManager {
   }
 
   async getOrCreateActiveRoom(stakeId = 'room_10', forceReset = false) {
-    let room = this.rooms.get(stakeId);
+    const safeId = typeof stakeId === 'string' ? stakeId : (stakeId?.id || 'room_10');
+    let room = this.rooms.get(safeId);
     const nowMs = Date.now();
     const globalNextStart = Math.ceil(nowMs / 60000) * 60000;
 
@@ -46,7 +47,7 @@ export class RoomManager {
       return room;
     }
 
-    const stakeNum = parseInt(stakeId.replace('room_', ''), 10) || 10;
+    const stakeNum = parseInt(safeId.replace('room_', ''), 10) || 10;
 
     if (!room || forceReset || room.targetEndTime <= nowMs) {
       room = {

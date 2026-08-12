@@ -133,16 +133,6 @@ export default function Lobby({ rooms, onJoinRoom, globalMasterSeconds, user }) 
                       <span>RE-ENTER MATCH</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
-                  ) : isUserInMatch ? (
-                    <button
-                      onClick={() => {
-                        sound.playClick();
-                        onJoinRoom(id);
-                      }}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 px-3 py-2 text-xs uppercase font-black rounded-2xl flex items-center justify-center gap-1 mx-auto shadow-lg"
-                    >
-                      <span>CARD CONFIRMED ✅</span>
-                    </button>
                   ) : (
                     <button
                       onClick={() => {

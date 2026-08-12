@@ -261,10 +261,10 @@ export class RoomManager {
   }
 
   getGlobalRoundTiming() {
-    const roundDurationSeconds = 45; // 45-second registration window per round
+    const LOBBY_DURATION_MS = 60000; // 60-second waiting period for all players to join!
     const nowMs = Date.now();
-    const currentRoundIndex = Math.floor(nowMs / (roundDurationSeconds * 1000));
-    const nextRoundStartMs = (currentRoundIndex + 1) * (roundDurationSeconds * 1000);
+    const currentRoundIndex = Math.floor(nowMs / LOBBY_DURATION_MS);
+    const nextRoundStartMs = (currentRoundIndex + 1) * LOBBY_DURATION_MS;
     const countdownSeconds = Math.max(0, Math.ceil((nextRoundStartMs - nowMs) / 1000));
     
     return {
@@ -283,7 +283,7 @@ export class RoomManager {
     }
 
     const updateRoundClock = () => {
-      // If match is currently PLAYING or FINISHED, do NOT interrupt or reset to COUNTDOWN!
+      // If match is currently PLAYING or FINISHED, do NOT interrupt!
       if (room.status === 'PLAYING' || room.status === 'FINISHED') {
         return;
       }
@@ -314,10 +314,18 @@ export class RoomManager {
     room.currentBall = null;
     room.winner = null;
 
-    // Draw first ball immediately so 3D caller displays ball at 0:00!
-    this.drawNextBall(roomId);
+    // Broadcast "game_started" to ALL clients in the room simultaneously!
+    const details = this.getRoomDetails(roomId);
+    this.io.to(roomId).emit('game_started', {
+      roomId,
+      message: 'Game starting now!',
+      room: details
+    });
 
     this.broadcastRoomUpdate(roomId);
+
+    // Draw first ball immediately so all players see Ball #1 at 0:00!
+    this.drawNextBall(roomId);
     this.startAutocall(roomId);
   }
 
@@ -368,11 +376,14 @@ export class RoomManager {
     const ballPayload = {
       roomId,
       ball,
-      calledBalls: room.calledBalls
+      number: ballNumber,
+      calledBalls: room.calledBalls,
+      history: room.calledBalls
     };
 
+    // Broadcast "number_drawn" & "ball_called" to ALL connected players in that room simultaneously!
+    this.io.to(roomId).emit('number_drawn', ballPayload);
     this.io.to(roomId).emit('ball_called', ballPayload);
-    this.io.emit('ball_called', ballPayload);
 
     this.broadcastRoomUpdate(roomId);
     return ball;

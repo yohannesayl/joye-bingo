@@ -3363,6 +3363,36 @@
       "gamesPlayed": 0,
       "status": "ACTIVE",
       "joinedAt": "2026-08-11T13:13:34.159Z"
+    },
+    "user_1786454728745": {
+      "id": "user_1786454728745",
+      "username": "Player_8745",
+      "displayName": "Player #8745",
+      "phonenumber": "0940227706",
+      "phone": "0923801321",
+      "password": "123",
+      "amount": 1000,
+      "balance": 1000,
+      "totalWins": 0,
+      "totalEarned": 0,
+      "gamesPlayed": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-08-11T13:25:32.572Z"
+    },
+    "user_1786454728757": {
+      "id": "user_1786454728757",
+      "username": "Player_8757",
+      "displayName": "Player #8757",
+      "phonenumber": "0971200948",
+      "phone": "0920933934",
+      "password": "123",
+      "amount": 1000,
+      "balance": 1000,
+      "totalWins": 0,
+      "totalEarned": 0,
+      "gamesPlayed": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-08-11T13:25:32.577Z"
     }
   },
   "transactions": [

@@ -30,22 +30,24 @@ export default function App() {
   const [lang, setLang] = useState('en');
 
   const [targetTimestamp, setTargetTimestamp] = useState(null);
+  const [serverOffset, setServerOffset] = useState(0);
   const [globalMasterSeconds, setGlobalMasterSeconds] = useState(60);
 
-  // Continuous 500ms React Re-render Loop (Updates globalMasterSeconds so Lobby re-renders smoothly!)
+  // Client-Server Time Offset Corrected Loop (Corrects client wall-clock against server time offset!)
   useEffect(() => {
     const timerLoopId = setInterval(() => {
       if (targetTimestamp) {
-        const diffMs = targetTimestamp - Date.now();
+        const nowCorrected = Date.now() + serverOffset;
+        const diffMs = targetTimestamp - nowCorrected;
         const secondsRemaining = Math.max(0, Math.ceil(diffMs / 1000));
         setGlobalMasterSeconds(secondsRemaining);
       } else {
         setGlobalMasterSeconds(prev => (prev > 0 ? prev - 1 : 0));
       }
-    }, 500);
+    }, 250);
 
     return () => clearInterval(timerLoopId);
-  }, [targetTimestamp]);
+  }, [targetTimestamp, serverOffset]);
 
   // Initialize & Restore User Session (Strict sessionStorage per-tab isolation!)
   useEffect(() => {
@@ -159,6 +161,9 @@ export default function App() {
       setRooms(roomList);
       if (Array.isArray(roomList) && roomList.length > 0) {
         const activeTargetRoom = roomList.find(r => r.id === currentRoomId) || roomList[0];
+        if (activeTargetRoom && activeTargetRoom.serverTime) {
+          setServerOffset(activeTargetRoom.serverTime - Date.now());
+        }
         if (activeTargetRoom && activeTargetRoom.targetEndTime) {
           setTargetTimestamp(activeTargetRoom.targetEndTime);
         } else if (activeTargetRoom && activeTargetRoom.countdownSeconds !== undefined) {
@@ -168,6 +173,9 @@ export default function App() {
     });
 
     socket.on('lobby_tick', (data) => {
+      if (data && data.serverTime) {
+        setServerOffset(data.serverTime - Date.now());
+      }
       if (data && data.targetEndTime) {
         setTargetTimestamp(data.targetEndTime);
       } else if (data && data.timeRemaining !== undefined) {
@@ -176,6 +184,9 @@ export default function App() {
     });
 
     socket.on('lobby_status', (data) => {
+      if (data && data.serverTime) {
+        setServerOffset(data.serverTime - Date.now());
+      }
       if (data && data.targetEndTime) {
         setTargetTimestamp(data.targetEndTime);
       } else if (data && data.timeRemaining !== undefined) {
@@ -184,6 +195,9 @@ export default function App() {
     });
 
     socket.on('lobby_reset', (data) => {
+      if (data && data.serverTime) {
+        setServerOffset(data.serverTime - Date.now());
+      }
       if (data && data.targetEndTime) {
         setTargetTimestamp(data.targetEndTime);
       } else {
@@ -201,6 +215,9 @@ export default function App() {
     socket.on('room_state', (roomDetails) => {
       if (roomDetails.id === currentRoomId || !currentRoomId) {
         setCurrentRoom(roomDetails);
+        if (roomDetails.serverTime) {
+          setServerOffset(roomDetails.serverTime - Date.now());
+        }
         if (roomDetails.targetEndTime) {
           setTargetTimestamp(roomDetails.targetEndTime);
         }

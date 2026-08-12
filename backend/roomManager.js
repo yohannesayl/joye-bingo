@@ -154,9 +154,10 @@ export class RoomManager {
   }
 
   getRoomList() {
+    const now = Date.now();
     return Array.from(this.rooms.values()).map(r => {
-      const targetEndTime = r.endTime || (Date.now() + 60000);
-      const remainingMs = Math.max(0, targetEndTime - Date.now());
+      const targetEndTime = r.endTime || (now + 60000);
+      const remainingMs = Math.max(0, targetEndTime - now);
       const liveCountdownSeconds = Math.ceil(remainingMs / 1000);
       return {
         id: r.id,
@@ -167,7 +168,8 @@ export class RoomManager {
         cardsSold: r.cardPurchases.size,
         pot: this.calculateRoomPot(r),
         countdownSeconds: liveCountdownSeconds,
-        targetEndTime: targetEndTime
+        targetEndTime: targetEndTime,
+        serverTime: now
       };
     });
   }
@@ -175,8 +177,9 @@ export class RoomManager {
   getRoomDetails(roomId) {
     const room = this.rooms.get(roomId);
     if (!room) return null;
-    const targetEndTime = room.endTime || (Date.now() + 60000);
-    const remainingMs = Math.max(0, targetEndTime - Date.now());
+    const now = Date.now();
+    const targetEndTime = room.endTime || (now + 60000);
+    const remainingMs = Math.max(0, targetEndTime - now);
     const liveCountdownSeconds = Math.ceil(remainingMs / 1000);
     return {
       id: room.id,
@@ -186,6 +189,7 @@ export class RoomManager {
       playerCount: this.getPlayerCount(room),
       countdownSeconds: liveCountdownSeconds,
       targetEndTime: targetEndTime,
+      serverTime: now,
       calledBalls: room.calledBalls,
       currentBall: room.currentBall,
       pot: this.calculateRoomPot(room),
@@ -217,21 +221,24 @@ export class RoomManager {
     const activeCount = this.getPlayerCount(room);
     room.pot = this.calculateRoomPot(room);
 
-    const targetEndTime = room.endTime || (Date.now() + 60000);
-    const remainingMs = Math.max(0, targetEndTime - Date.now());
+    const now = Date.now();
+    const targetEndTime = room.endTime || (now + 60000);
+    const remainingMs = Math.max(0, targetEndTime - now);
     const remainingSeconds = Math.ceil(remainingMs / 1000);
 
-    // CRITICAL: Send fixed targetEndTime timestamp to ALL players in this room!
+    // CRITICAL: Send fixed targetEndTime AND serverTime timestamp to ALL players in this room!
     this.io.to(room.id).emit('lobby_status', {
       roomId: room.id,
       playerCount: activeCount,
       timeRemaining: remainingSeconds,
-      targetEndTime: targetEndTime
+      targetEndTime: targetEndTime,
+      serverTime: now
     });
 
     this.io.to(room.id).emit('room_state', {
       roomId: room.id,
       targetEndTime: targetEndTime,
+      serverTime: now,
       playerCount: activeCount,
       status: room.status
     });
@@ -367,16 +374,18 @@ export class RoomManager {
         return;
       }
 
-      const targetEndTime = room.endTime || (Date.now() + 60000);
-      const remainingMs = Math.max(0, targetEndTime - Date.now());
+      const now = Date.now();
+      const targetEndTime = room.endTime || (now + 60000);
+      const remainingMs = Math.max(0, targetEndTime - now);
       const remainingSeconds = Math.ceil(remainingMs / 1000);
       room.countdownSeconds = remainingSeconds;
 
-      // Send fixed targetEndTime timestamp to ALL clients!
+      // Send fixed targetEndTime AND serverTime timestamp to ALL clients!
       this.io.emit('lobby_tick', {
         roomId: room.id,
         timeRemaining: room.countdownSeconds,
         targetEndTime: targetEndTime,
+        serverTime: now,
         playerCount: this.getPlayerCount(room)
       });
 
@@ -384,7 +393,8 @@ export class RoomManager {
         roomId: room.id,
         playerCount: this.getPlayerCount(room),
         timeRemaining: room.countdownSeconds,
-        targetEndTime: targetEndTime
+        targetEndTime: targetEndTime,
+        serverTime: now
       });
 
       if (room.countdownSeconds <= 0) {

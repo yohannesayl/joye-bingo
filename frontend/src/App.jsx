@@ -33,18 +33,21 @@ export default function App() {
   const [serverOffset, setServerOffset] = useState(0);
   const [globalMasterSeconds, setGlobalMasterSeconds] = useState(60);
 
-  // Client-Server Time Offset Corrected Loop (Corrects client wall-clock against server time offset!)
+  // Stable 1-Second Tick Loop (Ticks cleanly once per second: 60s -> 59s -> 58s)
   useEffect(() => {
-    const timerLoopId = setInterval(() => {
+    const updateTimerDisplay = () => {
       if (targetTimestamp) {
         const nowCorrected = Date.now() + serverOffset;
         const diffMs = targetTimestamp - nowCorrected;
-        const secondsRemaining = Math.max(0, Math.ceil(diffMs / 1000));
+        const secondsRemaining = Math.max(0, Math.floor(diffMs / 1000));
         setGlobalMasterSeconds(secondsRemaining);
       } else {
         setGlobalMasterSeconds(prev => (prev > 0 ? prev - 1 : 0));
       }
-    }, 250);
+    };
+
+    updateTimerDisplay();
+    const timerLoopId = setInterval(updateTimerDisplay, 1000);
 
     return () => clearInterval(timerLoopId);
   }, [targetTimestamp, serverOffset]);
@@ -162,7 +165,7 @@ export default function App() {
       if (Array.isArray(roomList) && roomList.length > 0) {
         const activeTargetRoom = roomList.find(r => r.id === currentRoomId) || roomList[0];
         if (activeTargetRoom && activeTargetRoom.serverTime) {
-          setServerOffset(activeTargetRoom.serverTime - Date.now());
+          setServerOffset(prev => (prev === 0 ? activeTargetRoom.serverTime - Date.now() : prev));
         }
         if (activeTargetRoom && activeTargetRoom.targetEndTime) {
           setTargetTimestamp(activeTargetRoom.targetEndTime);
@@ -174,7 +177,7 @@ export default function App() {
 
     socket.on('lobby_tick', (data) => {
       if (data && data.serverTime) {
-        setServerOffset(data.serverTime - Date.now());
+        setServerOffset(prev => (prev === 0 ? data.serverTime - Date.now() : prev));
       }
       if (data && data.targetEndTime) {
         setTargetTimestamp(data.targetEndTime);
@@ -185,7 +188,7 @@ export default function App() {
 
     socket.on('lobby_status', (data) => {
       if (data && data.serverTime) {
-        setServerOffset(data.serverTime - Date.now());
+        setServerOffset(prev => (prev === 0 ? data.serverTime - Date.now() : prev));
       }
       if (data && data.targetEndTime) {
         setTargetTimestamp(data.targetEndTime);
@@ -196,7 +199,7 @@ export default function App() {
 
     socket.on('lobby_reset', (data) => {
       if (data && data.serverTime) {
-        setServerOffset(data.serverTime - Date.now());
+        setServerOffset(prev => (prev === 0 ? data.serverTime - Date.now() : prev));
       }
       if (data && data.targetEndTime) {
         setTargetTimestamp(data.targetEndTime);

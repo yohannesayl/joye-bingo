@@ -32,16 +32,17 @@ export default function App() {
   const [targetTimestamp, setTargetTimestamp] = useState(null);
   const [globalMasterSeconds, setGlobalMasterSeconds] = useState(60);
 
-  // Fixed Wall-Clock Difference Loop (Compares local wall-clock against server's fixed target timestamp)
+  // Continuous 500ms React Re-render Loop (Updates globalMasterSeconds so Lobby re-renders smoothly!)
   useEffect(() => {
-    if (!targetTimestamp) return;
-
     const timerLoopId = setInterval(() => {
-      const now = Date.now();
-      const diffMs = targetTimestamp - now;
-      const secondsRemaining = Math.max(0, Math.ceil(diffMs / 1000));
-      setGlobalMasterSeconds(secondsRemaining);
-    }, 200);
+      if (targetTimestamp) {
+        const diffMs = targetTimestamp - Date.now();
+        const secondsRemaining = Math.max(0, Math.ceil(diffMs / 1000));
+        setGlobalMasterSeconds(secondsRemaining);
+      } else {
+        setGlobalMasterSeconds(prev => (prev > 0 ? prev - 1 : 0));
+      }
+    }, 500);
 
     return () => clearInterval(timerLoopId);
   }, [targetTimestamp]);

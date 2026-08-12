@@ -307,9 +307,9 @@ export default function App() {
       sessionStorage.setItem(`joye_card_${currentRoomId}`, cardId);
       socketService.buyCard(currentRoomId, user.id, cardId);
     }
-    // STAY IN LOBBY UNTIL SERVER EMITS start_match AT 0:00!
+    // IMMEDIATELY REDIRECT TO FINAL GAME PAGE AS REQUESTED BY USER!
     setShowCardSelector(false);
-    setActiveTab('lobby');
+    setActiveTab('game');
   };
 
   const safeRoom = currentRoom || rooms.find(r => r.id === currentRoomId) || {

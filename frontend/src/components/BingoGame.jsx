@@ -383,6 +383,12 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
   const recentBalls = Array.from(calledSet).slice(-4).reverse();
   const isUserWinner = winnerModal && winnerModal.userId === user?.id;
 
+  const rawSec = displayCountdownSeconds !== undefined && displayCountdownSeconds !== null ? displayCountdownSeconds : 60;
+  const sec = rawSec > 1000 ? Math.ceil(rawSec / 1000) : Math.max(0, Math.floor(rawSec));
+  const mins = Math.floor(sec / 60);
+  const secs = sec % 60;
+  const formattedTimer = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3 space-y-3" onClick={() => sound.initContext()}>
       
@@ -396,14 +402,14 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
           Leave Match
         </button>
 
-        <span className="text-xs font-black text-yellow-400 font-mono">
+        <span className="text-xs font-black text-yellow-400 font-mono flex items-center gap-1">
           {isGameOver
             ? '🏆 Match Finished!'
             : isWaitingForPlayers
             ? '👥 Waiting for Players (Need 2+)'
             : isStep4Active
-            ? '⚡ PLAYING'
-            : `⏱ Selection Countdown: 0:${displayCountdownSeconds < 10 ? '0' : ''}${displayCountdownSeconds}`}
+            ? '⚡ PLAYING - MATCH IN PROGRESS'
+            : `⏱ Match Starts In: ${formattedTimer}`}
         </span>
 
         {/* Speed Controls */}
@@ -447,19 +453,19 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
         <div className="bg-[#241338]/90 border-2 border-yellow-400 p-4 rounded-3xl text-center space-y-2 shadow-2xl animate-popIn">
           <div className="flex items-center justify-center gap-2 text-emerald-400 font-extrabold text-xs sm:text-sm">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>STEP 2 COMPLETE: CARD CONFIRMED & REGISTERED FOR MATCH!</span>
+            <span>CARD CONFIRMED & REGISTERED!</span>
           </div>
 
           <h3 className="text-base sm:text-lg font-extrabold text-white">
-            Step 3: Waiting for selection timer to reach 0:00...
+            Waiting for countdown to reach 0:00 to start drawing balls...
           </h3>
 
-          <div className="digital-clock-green text-4xl font-mono py-1">
-            0:{displayCountdownSeconds < 10 ? '0' : ''}{displayCountdownSeconds}
+          <div className="text-red-500 font-black text-4xl font-mono py-1 drop-shadow-[0_0_12px_rgba(239,68,68,0.9)]">
+            {formattedTimer}
           </div>
 
           <p className="text-[11px] text-slate-300 max-w-md mx-auto">
-            When timer reaches 0:00, Step 4 System Ball Calling will automatically start! Listen to the voice caller and mark matching numbers on your card below.
+            When timer reaches 0:00, System Ball Calling will automatically start! Listen to the voice caller and mark matching numbers on your card below.
           </p>
         </div>
       )}

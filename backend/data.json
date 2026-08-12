@@ -3618,6 +3618,21 @@
       "gamesPlayed": 0,
       "status": "ACTIVE",
       "joinedAt": "2026-08-12T11:57:24.809Z"
+    },
+    "6a7b26a546e74cafcce0bb1b": {
+      "id": "6a7b26a546e74cafcce0bb1b",
+      "username": "Player_bb1b",
+      "displayName": "Player #bb1b",
+      "phonenumber": "0963622889",
+      "phone": "0976450180",
+      "password": "123",
+      "amount": 1000,
+      "balance": 1000,
+      "totalWins": 0,
+      "totalEarned": 0,
+      "gamesPlayed": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-08-12T12:57:04.312Z"
     }
   },
   "transactions": [

@@ -276,12 +276,17 @@ export default function App() {
       ) || !!savedCardId
     );
 
-    if ((targetRoom && targetRoom.status === 'PLAYING') || isUserInMatch) {
-      // IF MATCH IS PLAYING OR USER ALREADY HAS AN ACTIVE CARD, ROUTE DIRECTLY TO LIVE MATCH SCREEN WITHOUT SELECTING A NEW CARD!
+    if (targetRoom && targetRoom.status === 'PLAYING' && isUserInMatch) {
+      // ONLY RE-ENTER LIVE GAME SCREEN IF THE MATCH IS ACTUALLY PLAYING AND USER HAS A CARD!
       setShowCardSelector(false);
       setActiveTab('game');
+    } else if (targetRoom && targetRoom.status === 'PLAYING' && !isUserInMatch) {
+      // MATCH IN PROGRESS & USER HAS NO CARD: STAY IN LOBBY
+      alert('⚡ Match is currently in progress! Please wait for the next game lobby to open.');
+      setShowCardSelector(false);
+      setActiveTab('lobby');
     } else {
-      // OTHERWISE OPEN CARD SELECTION OVERLAY
+      // OPEN CARD SELECTION OVERLAY IN LOBBY
       setShowCardSelector(true);
       setActiveTab('lobby');
     }
@@ -302,8 +307,9 @@ export default function App() {
       sessionStorage.setItem(`joye_card_${currentRoomId}`, cardId);
       socketService.buyCard(currentRoomId, user.id, cardId);
     }
+    // STAY IN LOBBY UNTIL SERVER EMITS start_match AT 0:00!
     setShowCardSelector(false);
-    setActiveTab('game');
+    setActiveTab('lobby');
   };
 
   const safeRoom = currentRoom || rooms.find(r => r.id === currentRoomId) || {

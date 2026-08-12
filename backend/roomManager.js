@@ -42,49 +42,49 @@ export class RoomManager {
     const stakeNum = parseInt(stakeId.replace('room_', ''), 10) || 10;
     const LOBBY_DURATION_MS = 60000; // 60 seconds room window
 
-    let room = this.activeLobbies.get(stakeId);
-
-    // If memory room is missing or no longer WAITING:
-    if (!room || room.status !== 'WAITING') {
-      // 1. Query MongoDB Atlas for an active WAITING document whose endTime has NOT passed
+    // 1. ALWAYS query MongoDB Atlas for active WAITING document whose endTime has NOT passed
+    let roomDoc = await db.getRoomState(stakeId);
+    if (!roomDoc || roomDoc.status !== 'WAITING' || !roomDoc.endTime || new Date(roomDoc.endTime) <= now) {
+      // Create new lobby document in MongoDB Atlas
       const roomId = stakeId;
       const startTime = now;
       const endTime = new Date(now.getTime() + LOBBY_DURATION_MS);
 
-      let roomDoc = await db.getRoomState(stakeId);
-      if (!roomDoc || roomDoc.status !== 'WAITING' || !roomDoc.endTime || new Date(roomDoc.endTime) <= now) {
-        // Create new lobby document in MongoDB Atlas
-        const updated = await db.updateRoomState(roomId, {
-          roomId,
-          stakeId,
-          name: `${stakeNum}birr Match`,
-          stake: stakeNum,
-          status: 'WAITING',
-          startTime,
-          endTime,
-          countdownSeconds: 60,
-          players: [],
-          cardPurchases: [],
-          calledBalls: [],
-          currentBall: null,
-          winner: null,
-          pot: 0
-        });
-        if (updated) roomDoc = updated;
-        console.log(`[MongoDB Atlas] Persistent lobby created: ${roomId}. Lock at: ${endTime}`);
-      }
+      const updated = await db.updateRoomState(roomId, {
+        roomId,
+        stakeId,
+        name: `${stakeNum}birr Match`,
+        stake: stakeNum,
+        status: 'WAITING',
+        startTime,
+        endTime,
+        countdownSeconds: 60,
+        players: [],
+        cardPurchases: [],
+        calledBalls: [],
+        currentBall: null,
+        winner: null,
+        pot: 0
+      });
+      if (updated) roomDoc = updated;
+      console.log(`[MongoDB Atlas Persistent Sync] New lobby created: ${roomId}. Lock at: ${endTime}`);
+    }
 
-      const safeEndTime = (roomDoc && roomDoc.endTime) ? roomDoc.endTime : endTime;
-      const endTimeMs = new Date(safeEndTime).getTime();
+    const safeEndTime = (roomDoc && roomDoc.endTime) ? roomDoc.endTime : new Date(now.getTime() + LOBBY_DURATION_MS);
+    const endTimeMs = new Date(safeEndTime).getTime();
+    const remainingMs = Math.max(0, endTimeMs - Date.now());
+    const remainingSeconds = Math.ceil(remainingMs / 1000);
 
+    let room = this.rooms.get(stakeId);
+    if (!room) {
       room = {
         id: stakeId,
         baseId: stakeId,
         name: `${stakeNum}birr Match`,
         stake: stakeNum,
-        status: 'WAITING',
+        status: (roomDoc && roomDoc.status) || 'WAITING',
         endTime: endTimeMs,
-        countdownSeconds: Math.max(0, Math.ceil((endTimeMs - Date.now()) / 1000)),
+        countdownSeconds: remainingSeconds,
         players: new Map(),
         cardPurchases: new Map(),
         calledBalls: roomDoc ? (roomDoc.calledBalls || []) : [],
@@ -96,15 +96,12 @@ export class RoomManager {
         winner: roomDoc ? (roomDoc.winner || null) : null,
         timer: null
       };
-
-      const remainingMs = Math.max(0, endTimeMs - Date.now());
-      room.timer = setTimeout(() => {
-        this.startGroupGame(room);
-      }, remainingMs);
-
-      this.activeLobbies.set(stakeId, room);
       this.rooms.set(stakeId, room);
       this.startCountdown(stakeId);
+    } else {
+      room.endTime = endTimeMs;
+      room.countdownSeconds = remainingSeconds;
+      if (roomDoc && roomDoc.status) room.status = roomDoc.status;
     }
 
     return room;

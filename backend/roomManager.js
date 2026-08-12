@@ -20,7 +20,7 @@ export class RoomManager {
     this.initDefaultRooms();
   }
 
-  initDefaultRooms() {
+  async initDefaultRooms() {
     const roomConfigs = [
       { id: 'room_10', name: '10birr Match', stake: 10 },
       { id: 'room_20', name: '20birr Match', stake: 20 },
@@ -32,20 +32,20 @@ export class RoomManager {
       { id: 'room_200', name: '200birr Match', stake: 200 },
     ];
 
-    roomConfigs.forEach(cfg => {
-      this.getOrCreateActiveRoom(cfg.id);
-    });
+    for (const cfg of roomConfigs) {
+      await this.getOrCreateActiveRoom(cfg.id, true);
+    }
   }
 
-  async getOrCreateActiveRoom(stakeId = 'room_10') {
+  async getOrCreateActiveRoom(stakeId = 'room_10', forceReset = false) {
     const now = new Date();
     const stakeNum = parseInt(stakeId.replace('room_', ''), 10) || 10;
     const LOBBY_DURATION_MS = 60000; // 60 seconds room window
 
-    // 1. ALWAYS query MongoDB Atlas for active WAITING document whose endTime has NOT passed
+    // 1. Query MongoDB Atlas for active WAITING document whose endTime has NOT passed
     let roomDoc = await db.getRoomState(stakeId);
-    if (!roomDoc || roomDoc.status !== 'WAITING' || !roomDoc.endTime || new Date(roomDoc.endTime) <= now) {
-      // Create new lobby document in MongoDB Atlas
+    if (forceReset || !roomDoc || roomDoc.status !== 'WAITING' || !roomDoc.endTime || new Date(roomDoc.endTime) <= now) {
+      // Create/Reset persistent lobby document in MongoDB Atlas with startTime and endTime ISODates
       const roomId = stakeId;
       const startTime = now;
       const endTime = new Date(now.getTime() + LOBBY_DURATION_MS);
@@ -67,7 +67,7 @@ export class RoomManager {
         pot: 0
       });
       if (updated) roomDoc = updated;
-      console.log(`[MongoDB Atlas Persistent Sync] New lobby created: ${roomId}. Lock at: ${endTime}`);
+      console.log(`[MongoDB Atlas Clean Lobby] Reset ${roomId}: WAITING until ${endTime.toISOString()}`);
     }
 
     const safeEndTime = (roomDoc && roomDoc.endTime) ? roomDoc.endTime : new Date(now.getTime() + LOBBY_DURATION_MS);

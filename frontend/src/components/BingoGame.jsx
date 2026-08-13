@@ -371,7 +371,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
 
   const handleAddBot = () => {
     sound.playClick();
-    socketService.addBotPlayer(room?.id || 'room_10');
+    if (room?.id) socketService.addBotPlayer(room.id);
   };
 
   const safeActiveCard = (myCards[0] && Array.isArray(myCards[0].matrix)) ? myCards[0] : defaultCard72;
@@ -405,8 +405,8 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
 
     setWinnerModal(winDetails);
 
-    if (socket) {
-      socket.emit('claim_bingo', { roomId: room?.id || 'room_10', userId: user?.id, cardId });
+    if (socket && room?.id) {
+      socket.emit('claim_bingo', { roomId: room.id, userId: user?.id, cardId });
     }
   };
 
@@ -532,14 +532,19 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
 
           {/* 3D Animated Ball & History Bubbles */}
           <div className="flex items-center justify-center gap-3 my-1">
-            {isStep4Active ? (
-              <div key={liveCurrentBall?.number || 'b12'} className="w-28 h-28 rounded-full bg-[#103860] border-4 border-[#869ab0] flex flex-col items-center justify-center text-white shadow-2xl animate-popIn">
+            {isStep4Active && liveCurrentBall ? (
+              <div key={liveCurrentBall.number} className="w-28 h-28 rounded-full bg-[#103860] border-4 border-[#869ab0] flex flex-col items-center justify-center text-white shadow-2xl animate-popIn">
                 <span className="text-lg font-black font-mono">
-                  {liveCurrentBall?.letter || 'B'}
+                  {liveCurrentBall.letter}
                 </span>
                 <span className="text-5xl font-black font-mono">
-                  {liveCurrentBall?.number || 12}
+                  {liveCurrentBall.number}
                 </span>
+              </div>
+            ) : isStep4Active ? (
+              <div className="w-28 h-28 rounded-full bg-[#103860] border-4 border-yellow-400 flex flex-col items-center justify-center text-yellow-400 font-black text-xs text-center p-2 shadow-2xl animate-pulse">
+                <Sparkles className="w-6 h-6 mb-1 animate-spin text-yellow-400" />
+                <span>Drawing Ball #1...</span>
               </div>
             ) : (
               <div className="w-28 h-28 rounded-full bg-[#120524] border-4 border-dashed border-purple-800 flex flex-col items-center justify-center text-yellow-400 font-extrabold text-xs text-center p-2">

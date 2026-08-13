@@ -282,8 +282,14 @@ export default function App() {
   // ALWAYS ALLOW JOINING DIRECTLY TO THE GAME SCREEN FOR ACTIVE MATCH RE-ENTRY!
   const handleJoinRoom = (roomId) => {
     sound.playClick();
+
+    if (currentRoomId && currentRoomId !== roomId) {
+      socketService.leaveRoom(currentRoomId);
+    }
+
     setCurrentRoomId(roomId);
-    const targetRoom = currentRoom || rooms.find(r => r.id === roomId);
+    const targetRoom = rooms.find(r => r.id === roomId) || null;
+    setCurrentRoom(targetRoom);
 
     socketService.joinRoom(roomId, user);
 
@@ -330,15 +336,22 @@ export default function App() {
     setActiveTab('game');
   };
 
-  const safeRoom = currentRoom || rooms.find(r => r.id === currentRoomId) || {
-    id: 'room_10',
-    name: '10birr Match',
-    stake: 10,
-    status: 'WAITING_FOR_PLAYERS',
-    countdownSeconds: 45,
+  const targetRoomObj = rooms.find(r => r.id === currentRoomId);
+  const activeRoomObj = (currentRoom && (currentRoom.id === currentRoomId || currentRoom.roomId === currentRoomId))
+    ? currentRoom
+    : targetRoomObj;
+
+  const stakeNumber = currentRoomId ? (parseInt(currentRoomId.replace('room_', ''), 10) || 10) : 10;
+
+  const safeRoom = activeRoomObj || {
+    id: currentRoomId || 'room_10',
+    name: `${stakeNumber}birr Match`,
+    stake: stakeNumber,
+    status: 'WAITING',
+    countdownSeconds: 60,
     calledBalls: [],
     currentBall: null,
-    pot: 17,
+    pot: 0,
     purchasedCards: []
   };
 

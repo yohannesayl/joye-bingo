@@ -239,7 +239,7 @@ export default function BingoGame({ room, user, socket, onOpenCardSelector, onLe
       socket.off('lobby_status', handleTimerTick);
       socket.off('lobby_tick', handleTimerTick);
     };
-  }, [socket, voiceOn, isGameOver, user?.id]);
+  }, [socket, voiceOn, isGameOver, user?.id, room?.id]);
 
   // Instant zero-delay transition when displayCountdownSeconds reaches 0:00!
   useEffect(() => {

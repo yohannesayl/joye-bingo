@@ -267,6 +267,16 @@ export default function App() {
       socket.off('room_state');
       socket.off('card_bought');
       socket.off('error_msg');
+      socket.off('lobby_state_update', updateTimerState);
+      socket.off('lobby_state', updateTimerState);
+      socket.off('timer_tick', updateTimerState);
+      socket.off('lobby_tick', updateTimerState);
+      socket.off('lobby_status', updateTimerState);
+      socket.off('start_match', handleMatchStartEvent);
+      socket.off('start_game', handleMatchStartEvent);
+      socket.off('game_started', handleMatchStartEvent);
+      socket.off('game_start', handleMatchStartEvent);
+      socket.off('match_started', handleMatchStartEvent);
     };
   }, [currentRoomId, user?.id]);
 

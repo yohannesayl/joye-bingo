@@ -464,9 +464,13 @@ export class RoomManager {
     };
 
     this.io.to(room.id).emit('start_match', startPayload);
+    this.io.emit('start_match', startPayload);
     this.io.to(room.id).emit('start_game', startPayload);
+    this.io.emit('start_game', startPayload);
     this.io.to(room.id).emit('game_started', startPayload);
+    this.io.emit('game_started', startPayload);
     this.io.to(room.id).emit('match_started', startPayload);
+    this.io.emit('match_started', startPayload);
 
     this.broadcastRoomUpdate(room.id);
 
@@ -531,9 +535,11 @@ export class RoomManager {
       history: room.calledBalls
     };
 
-    // Broadcast "number_drawn" & "ball_called" strictly to players in THIS room!
+    // Broadcast "number_drawn" & "ball_called" to room & global fallback
     this.io.to(roomId).emit('number_drawn', ballPayload);
+    this.io.emit('number_drawn', ballPayload);
     this.io.to(roomId).emit('ball_called', ballPayload);
+    this.io.emit('ball_called', ballPayload);
 
     this.broadcastRoomUpdate(roomId);
     return ball;

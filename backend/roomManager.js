@@ -44,16 +44,21 @@ export class RoomManager {
     const nowMs = Date.now();
     const globalNextStart = Math.ceil(nowMs / 60000) * 60000;
 
-    if (!forceReset && room && room.status === 'WAITING' && room.targetEndTime > nowMs) {
-      return room;
+    if (!forceReset && room) {
+      if (room.status === 'PLAYING' || room.status === 'FINISHED') {
+        return room;
+      }
+      if (room.status === 'WAITING' && room.targetEndTime > nowMs) {
+        return room;
+      }
     }
 
     const stakeNum = parseInt(safeId.replace('room_', ''), 10) || 10;
 
-    if (!room || forceReset || room.targetEndTime <= nowMs) {
+    if (!room || forceReset || (room.status === 'WAITING' && room.targetEndTime <= nowMs)) {
       room = {
-        id: stakeId,
-        baseId: stakeId,
+        id: safeId,
+        baseId: safeId,
         name: `${stakeNum}birr Match`,
         stake: stakeNum,
         status: 'WAITING',
@@ -71,13 +76,13 @@ export class RoomManager {
         winner: null,
         timer: null
       };
-      this.rooms.set(stakeId, room);
-      this.startCountdown(stakeId);
+      this.rooms.set(safeId, room);
+      this.startCountdown(safeId);
 
       // Non-blocking background persistence to MongoDB Atlas
-      db.updateRoomState(stakeId, {
-        roomId: stakeId,
-        stakeId,
+      db.updateRoomState(safeId, {
+        roomId: safeId,
+        stakeId: safeId,
         name: room.name,
         stake: room.stake,
         status: 'WAITING',

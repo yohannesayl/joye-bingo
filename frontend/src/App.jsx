@@ -256,10 +256,17 @@ export default function App() {
       }
     });
 
+    socket.on('error_msg', (msg) => {
+      if (typeof msg === 'string') {
+        alert(`⚠️ ${msg}`);
+      }
+    });
+
     return () => {
       socket.off('lobby_list');
       socket.off('room_state');
       socket.off('card_bought');
+      socket.off('error_msg');
     };
   }, [currentRoomId, user?.id]);
 

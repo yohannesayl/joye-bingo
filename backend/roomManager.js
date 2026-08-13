@@ -30,6 +30,7 @@ export class RoomManager {
       { id: 'room_100', name: '100birr Match', stake: 100 },
       { id: 'room_150', name: '150birr Match', stake: 150 },
       { id: 'room_200', name: '200birr Match', stake: 200 },
+      { id: 'room_300', name: '300birr Match', stake: 300 },
     ];
 
     for (const cfg of roomConfigs) {
@@ -316,8 +317,7 @@ export class RoomManager {
 
     let user = await db.getUser(userId);
     if (!user || (user.balance !== undefined && user.balance < room.stake)) {
-      await db.updateBalance(userId, 1000);
-      user = await db.getUser(userId);
+      return { error: `Insufficient wallet balance! You need at least ${room.stake} Birr to play in this room.` };
     }
 
     if (user) {
@@ -400,42 +400,19 @@ export class RoomManager {
         console.log(`[SERVER TICK] ${room.id} -> Game starts in: ${room.countdownSeconds}s (Target: ${room.targetEndTime})`);
       }
 
-      // AHUN GAMES EPOCH PROTOCOL: Broadcast absolute targetEndTime and serverTime to ALL connected players!
-      this.io.emit('lobby_state', {
+      const timerPayload = {
         roomId: room.id,
         targetEndTime: room.targetEndTime,
         serverTime: now,
         seconds: room.countdownSeconds,
         timeRemaining: room.countdownSeconds,
         playerCount: this.getPlayerCount(room)
-      });
+      };
 
-      this.io.emit('timer_tick', {
-        roomId: room.id,
-        targetEndTime: room.targetEndTime,
-        serverTime: now,
-        seconds: room.countdownSeconds,
-        timeRemaining: room.countdownSeconds,
-        playerCount: this.getPlayerCount(room)
-      });
-
-      this.io.emit('lobby_tick', {
-        roomId: room.id,
-        targetEndTime: room.targetEndTime,
-        serverTime: now,
-        seconds: room.countdownSeconds,
-        timeRemaining: room.countdownSeconds,
-        playerCount: this.getPlayerCount(room)
-      });
-
-      this.io.to(room.id).emit('lobby_status', {
-        roomId: room.id,
-        targetEndTime: room.targetEndTime,
-        serverTime: now,
-        seconds: room.countdownSeconds,
-        playerCount: this.getPlayerCount(room),
-        timeRemaining: room.countdownSeconds
-      });
+      this.io.to(room.id).emit('lobby_state', timerPayload);
+      this.io.to(room.id).emit('timer_tick', timerPayload);
+      this.io.to(room.id).emit('lobby_tick', timerPayload);
+      this.io.to(room.id).emit('lobby_status', timerPayload);
 
       if (remainingMs <= 0 || room.countdownSeconds <= 0) {
         this.startGroupGame(room);
@@ -482,13 +459,9 @@ export class RoomManager {
     };
 
     this.io.to(room.id).emit('start_match', startPayload);
-    this.io.emit('start_match', startPayload);
     this.io.to(room.id).emit('start_game', startPayload);
-    this.io.emit('start_game', startPayload);
     this.io.to(room.id).emit('game_started', startPayload);
-    this.io.emit('game_started', startPayload);
     this.io.to(room.id).emit('match_started', startPayload);
-    this.io.emit('match_started', startPayload);
 
     this.broadcastRoomUpdate(room.id);
 
@@ -553,11 +526,9 @@ export class RoomManager {
       history: room.calledBalls
     };
 
-    // Broadcast "number_drawn" & "ball_called" to ALL connected players!
+    // Broadcast "number_drawn" & "ball_called" strictly to players in THIS room!
     this.io.to(roomId).emit('number_drawn', ballPayload);
-    this.io.emit('number_drawn', ballPayload);
     this.io.to(roomId).emit('ball_called', ballPayload);
-    this.io.emit('ball_called', ballPayload);
 
     this.broadcastRoomUpdate(roomId);
     return ball;

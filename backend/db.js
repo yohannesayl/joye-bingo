@@ -156,7 +156,31 @@ class DatabaseService {
             balance: userByUsername.amount !== undefined ? userByUsername.amount : 100
           };
         }
-      } catch (e) {}
+
+        // Auto-persist guest user in MongoDB if not found
+        const guestDoc = new User({
+          username: userId,
+          password: '123',
+          phonenumber: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+          phone: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+          fullName: `Player #${userId.slice(-4)}`,
+          displayName: `Player #${userId.slice(-4)}`,
+          amount: 1000,
+          totalWins: 0,
+          totalEarned: 0,
+          gamesPlayed: 0
+        });
+        await guestDoc.save();
+        const obj = guestDoc.toObject();
+        return {
+          ...obj,
+          id: obj._id.toString(),
+          phone: obj.phonenumber,
+          balance: obj.amount
+        };
+      } catch (e) {
+        console.error('[DB getUser Mongo Error]:', e.message);
+      }
     }
 
     if (this.localData.users[userId]) {
@@ -169,7 +193,7 @@ class DatabaseService {
       };
     }
 
-    // Guest fallback with 1,000 ETB bonus
+    // Guest fallback with 1,000 ETB bonus for local JSON DB
     const guestUser = {
       id: userId,
       username: `Player_${userId.slice(-4)}`,
